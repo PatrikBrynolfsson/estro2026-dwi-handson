@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DWI Hands-on</title>
+<style>
+:root {
+  --bg: #ffffff; --surface: #f4f6f9; --line: #dde2ea; --ink: #1a1a1a; --muted: #5f6672; --teal: #2a93b0;
+  --font: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #14171c; --surface: #1c2027; --line: #2e3440; --ink: #e9ecf1; --muted: #a2aab7; --teal: #4cb4d0; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.5;
+  padding: 32px max(16px, env(safe-area-inset-right, 0px)) 32px max(16px, env(safe-area-inset-left, 0px));
+}
+main { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+.eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-size: 30px; line-height: 1.15; margin: 4px 0 0; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.cards { display: flex; flex-direction: column; gap: 12px; }
+a.card, div.card {
+  display: block; text-decoration: none; color: inherit; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 10px; padding: 14px 16px;
+}
+a.card:hover { border-color: var(--teal); }
+a.card:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.card b { display: block; font-size: 17px; }
+.card .tag { font-size: 12px; font-weight: bold; color: var(--teal); letter-spacing: .05em; text-transform: uppercase; }
+footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on session 2 · Group 1</div>
+    <h1>Diffusion-weighted MRI</h1>
+  </header>
+  <p class="muted">When you are shown an ADC number, what do you need to know before you believe it? Work in pairs, and
+    write your predictions on the worksheet before you click.</p>
+  <div class="cards">
+    <a class="card" href="sandbox.html">
+      <span class="tag">Block A</span>
+      <b>ADC &amp; IVIM Sandbox</b>
+      <span class="muted">A real brain scan with 21 b-values: how the choice of b-values changes the ADC.</span>
+    </a>
+    <div class="card">
+      <span class="tag">Blocks B and C · coming</span>
+      <b>Prostate case</b>
+      <span class="muted">ROIs, two scans a week apart, and contouring on DWI.</span>
+    </div>
+  </div>
+  <footer>Patrik Brynolfsson · No installation needed · Works in any modern browser.</footer>
+</main>
+</body>
+</html>

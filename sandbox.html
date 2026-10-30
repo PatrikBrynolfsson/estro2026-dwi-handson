@@ -1,0 +1,819 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ADC &amp; IVIM Sandbox</title>
+</head>
+<body>
+
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: a reading-room bench. The image viewer on the left, the signal curve, controls and readouts on the right;
+   three steps as tabs. Colours follow the ESTRO course palette (one meaning per colour): teal = tissue water (D),
+   red = blood / fast-moving water, orange = measured signal and the ADC you get, ink = the full voxel signal. */
+:root {
+  --bg: #ffffff;
+  --surface: #f4f6f9;
+  --line: #dde2ea;
+  --ink: #1a1a1a;
+  --muted: #5f6672;
+  --guide: #9aa0a6;
+  --teal: #2a93b0;
+  --red: #e5484d;
+  --orange: #e0821a;
+  --good: #2e7d4f;
+  --chip: #eef1f5;
+  --chip-on: #1a1a1a;
+  --chip-on-fg: #ffffff;
+  --font: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  --mono: Consolas, "SF Mono", Menlo, "Liberation Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14171c; --surface: #1c2027; --line: #2e3440; --ink: #e9ecf1; --muted: #a2aab7; --guide: #5f6773;
+    --teal: #4cb4d0; --red: #f2696d; --orange: #f09a3e; --good: #5cc488; --chip: #232832;
+    --chip-on: #e9ecf1; --chip-on-fg: #14171c; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14171c; --surface: #1c2027; --line: #2e3440; --ink: #e9ecf1; --muted: #a2aab7; --guide: #5f6773;
+  --teal: #4cb4d0; --red: #f2696d; --orange: #f09a3e; --good: #5cc488; --chip: #232832;
+  --chip-on: #e9ecf1; --chip-on-fg: #14171c; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 32px;
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+header { display: flex; flex-direction: column; gap: 4px; }
+.eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-size: 28px; line-height: 1.15; margin: 0; text-wrap: balance; }
+h2 { font-size: 18px; margin: 0; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); max-width: 70ch; }
+
+nav { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid var(--line); }
+nav a {
+  text-decoration: none; color: var(--muted); padding: 8px 12px; border-bottom: 3px solid transparent;
+  font-weight: bold; margin-bottom: -1px;
+}
+nav a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--teal); }
+nav a:hover { color: var(--ink); }
+nav a:focus-visible, button:focus-visible, input:focus-visible, canvas:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.step-no { font-family: var(--mono); color: var(--teal); margin-right: 6px; }
+
+.tab { display: flex; flex-direction: column; gap: 26px; }
+.bench { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 24px; align-items: start; }
+.bench.plot-left { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); }
+@media (max-width: 860px) { .bench, .bench.plot-left { grid-template-columns: minmax(0, 1fr); } }
+.figure, .panel { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+
+.viewer { position: relative; background: #000000; border-radius: 10px; overflow: hidden; max-width: 520px; width: 100%; }
+.viewer canvas { display: block; width: 100%; height: auto; cursor: crosshair; touch-action: manipulation; }
+.viewer .tag {
+  position: absolute; left: 10px; top: 8px; color: #ffffff; font-size: 13px; font-weight: bold;
+  text-shadow: 0 1px 2px #000000; pointer-events: none;
+}
+.viewer .side { position: absolute; top: 50%; color: #c8ccd2; font-size: 13px; font-weight: bold; pointer-events: none; }
+.viewer .side-r { left: 10px; }
+.viewer .side-l { right: 10px; }
+.colorbar { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); max-width: 520px; }
+.colorbar canvas { flex: 1; height: 10px; width: 100%; border-radius: 3px; min-width: 0; }
+.colorbar .mono { white-space: nowrap; }
+
+svg.plot { width: 100%; height: auto; display: block; background: var(--bg); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.swatch { width: 18px; height: 0; border-top: 3px solid; display: inline-block; }
+.swatch.dash { border-top-style: dashed; }
+.swatch.area { height: 10px; border: 0; opacity: .35; }
+.dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.note { font-size: 12.5px; color: var(--muted); }
+
+.ctrl { display: flex; flex-direction: column; gap: 6px; }
+.ctrl-label { font-size: 13px; font-weight: bold; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+button {
+  font: inherit; font-size: 14px; color: var(--ink); background: var(--chip); border: 1px solid var(--line);
+  border-radius: 999px; padding: 5px 12px; cursor: pointer; font-variant-numeric: tabular-nums;
+}
+button:hover { border-color: var(--guide); }
+button[aria-pressed="true"] { background: var(--chip-on); color: var(--chip-on-fg); border-color: var(--chip-on); }
+button.primary { background: var(--teal); color: #ffffff; border-color: var(--teal); font-weight: bold; border-radius: 8px; padding: 7px 14px; }
+button.quiet { border-radius: 8px; }
+.roi-dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; vertical-align: 0; }
+.slider { display: flex; align-items: center; gap: 10px; }
+.slider input { flex: 1; min-width: 0; accent-color: var(--teal); }
+
+.readout {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.readout .big { font-family: var(--mono); font-size: 30px; line-height: 1.1; color: var(--orange); font-variant-numeric: tabular-nums; }
+.readout .big small { font-size: 14px; color: var(--muted); font-family: var(--font); }
+.readout .vs { font-size: 14px; }
+.pill { display: inline-block; font-size: 12.5px; font-weight: bold; padding: 2px 9px; border-radius: 999px; border: 1px solid; }
+.pill.ok { color: var(--good); border-color: var(--good); }
+.pill.bias { color: var(--red); border-color: var(--red); }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+.table-box { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-size: 13px; color: var(--muted); font-weight: bold; }
+td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+th.num { text-align: right; }
+td.hidden-val { color: var(--guide); text-align: right; }
+
+.tasks { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.tasks h2 { font-size: 16px; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.tasks h2 .note { font-weight: normal; }
+.tasks ol { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; counter-reset: task; }
+.tasks li { display: grid; grid-template-columns: 22px 26px minmax(0, 1fr); gap: 4px; align-items: start; font-size: 14.5px; }
+.tasks li::before { counter-increment: task; content: counter(task) "."; font-family: var(--mono); color: var(--teal); font-weight: bold; padding-top: 1px; grid-column: 2; grid-row: 1; }
+.tasks li input { grid-column: 1; grid-row: 1; width: 17px; height: 17px; margin: 2px 0 0; accent-color: var(--teal); cursor: pointer; }
+.tasks li label { grid-column: 3; grid-row: 1; cursor: pointer; }
+.tasks li.extra label::before { content: "Fast pairs · "; color: var(--teal); font-weight: bold; }
+.tasks li input:checked ~ label { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--guide); }
+.task { border-left: 3px solid var(--teal); padding: 2px 0 2px 12px; font-size: 14px; }
+.task b { display: block; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--teal); }
+.message { background: var(--surface); border-radius: 10px; padding: 12px 14px; font-size: 14.5px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.strips { display: flex; flex-direction: column; gap: 4px; }
+.divider { border: 0; border-top: 1px solid var(--line); margin: 0; }
+
+footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+@media (prefers-reduced-motion: no-preference) { button { transition: background .12s, color .12s, border-color .12s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · Diffusion-weighted MRI</div>
+    <h1>ADC &amp; IVIM Sandbox</h1>
+    <p class="lede">A real brain scan with 21 b-values. Choose which b-values go into the ADC and see what number you get.
+      Work in pairs and write your predictions on the worksheet before you click.</p>
+  </header>
+
+  <nav aria-label="Steps">
+    <a href="#images" data-tab="images"><span class="step-no">1</span>Same brain, different ADC</a>
+    <a href="#treatment" data-tab="treatment"><span class="step-no">2</span>Treatment</a>
+    <a href="#noise" data-tab="noise"><span class="step-no">3</span>Noise</a>
+  </nav>
+
+  <!-- STEP 1: real images -->
+  <section id="tab-images" class="tab">
+    <div class="tasks" data-step="1">
+      <h2>Tasks <span class="note">tick them off as you go · write your answers on the worksheet</span></h2>
+      <ol>
+        <li><input type="checkbox" id="t1-1"><label for="t1-1">Move the b-value slider from 0 to 1000. Which parts of the brain lose the most signal between b = 0 and b = 100?</label></li>
+        <li><input type="checkbox" id="t1-2"><label for="t1-2">Pick <b>Brain tissue</b>. Read its ADC with b 0 &amp; 800, then with b 200 &amp; 800.</label></li>
+        <li><input type="checkbox" id="t1-3"><label for="t1-3">Predict first: which region has the biggest difference between the two ADCs: brain tissue, CSF, or vessels + CSF in the Sylvian fissure? Then check.</label></li>
+        <li><input type="checkbox" id="t1-4"><label for="t1-4">A change in brain ADC counts as real only above <b>11 %</b> (QIBA), measured with the same scanner and protocol both times. Suppose the first scan's ADC included b = 0 and the follow-up's did not (another scanner or protocol). How much of the 11 % would that difference alone account for? And what if both scans used b = 0?</label></li>
+        <li class="extra"><input type="checkbox" id="t1-5"><label for="t1-5">CSF is almost pure water: its ADC is close to free water at body temperature (about 3.0 × 10⁻³ mm²/s). On the Difference map, why do the vessels in the Sylvian fissure light up?</label></li>
+      </ol>
+    </div>
+    <div class="bench">
+      <div class="figure">
+        <div class="ctrl">
+          <span class="ctrl-label">Show</span>
+          <div class="chips" id="view-chips"></div>
+        </div>
+        <div class="viewer">
+          <canvas id="cv1" tabindex="0" aria-label="Brain slice. Click a point to see its signal curve."></canvas>
+          <span class="tag" id="tag1"></span><span class="side side-r">R</span><span class="side side-l">L</span>
+        </div>
+        <div class="slider" id="b-slider-box">
+          <span class="ctrl-label">b-value</span>
+          <input type="range" id="b-slider" min="0" max="20" step="1" value="0" aria-label="b-value">
+          <span class="mono" id="b-slider-val">0</span>
+        </div>
+        <div class="colorbar" id="cb1"></div>
+        <div class="note">Click anywhere in the brain to see that spot's signal (3 × 3 voxels averaged).</div>
+      </div>
+      <div class="panel">
+        <div class="ctrl">
+          <span class="ctrl-label">Region</span>
+          <div class="chips" id="roi-chips"></div>
+        </div>
+        <svg class="plot" id="plot1" viewBox="0 0 640 400" role="img" aria-label="Signal against b-value on a log scale"></svg>
+        <div class="legend">
+          <span><i class="dot" style="background:var(--ink)"></i>measured signal (21 b-values)</span>
+          <span><i class="dot" style="background:var(--orange)"></i><i class="swatch" style="border-color:var(--orange)"></i>your two b-values and the ADC line</span>
+        </div>
+        <div class="ctrl">
+          <span class="ctrl-label">b-values used for the ADC (s/mm²)</span>
+          <div class="chips" id="scheme-chips"></div>
+        </div>
+        <div class="readout" aria-live="polite">
+          <span class="ctrl-label" id="ro1-label">ADC</span>
+          <span class="big" id="adc1"></span>
+          <span class="vs" id="vs1"></span>
+        </div>
+        <div class="ctrl">
+          <div class="row" style="justify-content:space-between">
+            <span class="ctrl-label">Your readings <span class="note">(last 6; a new click updates the “Your click” row)</span></span>
+            <button class="quiet" id="clear-log" type="button">Clear</button>
+          </div>
+          <div class="table-box">
+            <table>
+              <thead><tr><th>Region</th><th>b-values</th><th class="num">ADC</th><th class="num">vs b 200 &amp; 800</th></tr></thead>
+              <tbody id="log"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 2: treatment (simulated) -->
+  <section id="tab-treatment" class="tab" hidden>
+    <div class="tasks" data-step="2">
+      <h2>Tasks <span class="note">a simulated tumour: the brain scan has none</span></h2>
+      <ol>
+        <li><input type="checkbox" id="t2-1"><label for="t2-1">Predict first: write the four ADC values on the worksheet (b 0 &amp; 800 and b 200 &amp; 800, before and after treatment).</label></li>
+        <li><input type="checkbox" id="t2-2"><label for="t2-2">Press <b>Show the answers</b>. Which b-values see a change?</label></li>
+        <li><input type="checkbox" id="t2-3"><label for="t2-3">Is the change bigger than the 11 % QIBA limit for brain? Would you call it a response, or no response?</label></li>
+        <li class="extra"><input type="checkbox" id="t2-4"><label for="t2-4">Look at the b 50 &amp; 800 row. Is a lowest b-value of 50 enough?</label></li>
+      </ol>
+    </div>
+    <div class="bench plot-left">
+      <div class="figure">
+        <svg class="plot" id="plot2" viewBox="0 0 640 390" role="img" aria-label="Signal before and after treatment"></svg>
+        <div class="legend">
+          <span><i class="swatch dash" style="border-color:var(--guide)"></i>before (f = 0.25)</span>
+          <span><i class="swatch" style="border-color:var(--ink)"></i>after (f = 0.08)</span>
+          <span id="lg2-adc"><i class="dot" style="background:var(--orange)"></i>ADC lines (after you reveal)</span>
+        </div>
+        <svg class="plot" id="bars" viewBox="0 0 640 200" role="img" aria-label="Fall in ADC compared with QIBA true-change limits" hidden></svg>
+        <div class="note">Simulated tumour (the brain scan has none): tissue diffusion D = 1.0 × 10⁻³ mm²/s,
+          blood D* = 20 × 10⁻³ mm²/s, no noise.</div>
+      </div>
+      <div class="panel">
+        <div class="message">A tumour with a rich blood supply. Treatment shuts down part of it: <b>f falls from 0.25 to 0.08</b>.
+          The cells are untouched, so the tissue diffusion <b>D stays at 1.0</b>.</div>
+        <div class="ctrl">
+          <span class="ctrl-label">Show the curves for</span>
+          <div class="chips" id="b2-chips"></div>
+        </div>
+        <div class="table-box">
+          <table>
+            <thead><tr><th>b-values</th><th class="num">before</th><th class="num">after</th><th class="num">change</th></tr></thead>
+            <tbody id="t2"></tbody>
+          </table>
+        </div>
+        <div class="row">
+          <button class="primary" id="reveal" type="button">Show the answers</button>
+          <button class="quiet" id="hide" type="button" hidden>Hide again</button>
+        </div>
+        <div class="message" id="msg2" hidden></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 3: noise -->
+  <section id="tab-noise" class="tab" hidden>
+    <div class="tasks" data-step="3">
+      <h2>Tasks</h2>
+      <ol>
+        <li><input type="checkbox" id="t3-1"><label for="t3-1">Predict first: the same IVIM model was fitted in every voxel. Which map will show clear anatomy, and which will look like noise?</label></li>
+        <li><input type="checkbox" id="t3-2"><label for="t3-2">Switch between <b>D</b>, <b>f</b> and <b>D*</b>. Were you right?</label></li>
+        <li><input type="checkbox" id="t3-3"><label for="t3-3">Click the CSF behind the midbrain. What blood fraction f does the fit report? Does that make sense?</label></li>
+        <li><input type="checkbox" id="t3-4"><label for="t3-4">Scroll down and scan the same voxel 10 times. Which of D, f and D* stays close to its true value?</label></li>
+        <li class="extra"><input type="checkbox" id="t3-5"><label for="t3-5">Set the noise to SNR 20 (one voxel) and scan 10 times again.</label></li>
+      </ol>
+    </div>
+    <div class="bench">
+      <div class="figure">
+        <div class="ctrl">
+          <span class="ctrl-label">IVIM map (fitted voxel by voxel)</span>
+          <div class="chips" id="map-chips"></div>
+        </div>
+        <div class="viewer">
+          <canvas id="cv3" tabindex="0" aria-label="IVIM parameter map. Click a point to read its values."></canvas>
+          <span class="tag" id="tag3"></span><span class="side side-r">R</span><span class="side side-l">L</span>
+        </div>
+        <div class="colorbar" id="cb3"></div>
+      </div>
+      <div class="panel">
+        <div class="readout" aria-live="polite">
+          <span class="ctrl-label" id="ro3-label">Click a point in the map</span>
+          <span class="vs mono" id="ro3"></span>
+        </div>
+        <div class="message"><b>D</b> looks like an ADC map: smooth, clear anatomy. <b>f</b> is speckled. <b>D*</b> is mostly
+          noise. And in CSF the fit says f ≈ 0.9, which makes no sense: the model breaks down where its assumptions do not
+          hold. This is why IVIM maps are hard to use, and why studies of f (for example as a hypoxia marker) disagree.</div>
+      </div>
+    </div>
+    <hr class="divider">
+    <div class="bench plot-left">
+      <div class="figure">
+        <h2>Try it: scan one voxel again and again</h2>
+        <svg class="plot" id="plot3" viewBox="0 0 640 390" role="img" aria-label="Noisy signal and IVIM fit"></svg>
+        <div class="legend">
+          <span><i class="swatch dash" style="border-color:var(--guide)"></i>true signal</span>
+          <span><i class="dot" style="background:var(--orange)"></i>this scan (11 b-values)</span>
+          <span><i class="swatch" style="border-color:var(--ink)"></i>IVIM fit</span>
+        </div>
+        <div class="note">Simulated voxel: D = 1.0, f = 0.15, D* = 20 × 10⁻³ mm²/s. Each scan adds new noise; the fit then
+          estimates D, f and D* (segmented fit: D from b ≥ 200, f from where that line meets b = 0, then D* from the
+          low b-values).</div>
+      </div>
+      <div class="panel">
+        <div class="ctrl">
+          <span class="ctrl-label">Noise (signal-to-noise at b = 0)</span>
+          <div class="chips" id="snr-chips"></div>
+        </div>
+        <div class="row">
+          <button class="primary" id="scan1" type="button">Scan once</button>
+          <button class="quiet" id="scan10" type="button">Scan 10 times</button>
+          <button class="quiet" id="clear3" type="button">Clear</button>
+        </div>
+        <div class="strips">
+          <svg class="plot" id="strip-D" viewBox="0 0 400 74" role="img" aria-label="Fitted D"></svg>
+          <svg class="plot" id="strip-f" viewBox="0 0 400 74" role="img" aria-label="Fitted f"></svg>
+          <svg class="plot" id="strip-Ds" viewBox="0 0 400 74" role="img" aria-label="Fitted D*"></svg>
+        </div>
+        <div class="note" id="nscans"></div>
+        <div class="message" id="msg3" hidden>The same voxel, scanned again and again: D stays close to 1.0, f wanders, and
+          D* is all over the place. The maps above show the same thing across a whole brain.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Brain data: E. Peterson, IVIM dataset (21 b-values, 3 directions averaged), Figshare 2016, CC0,
+      doi:10.6084/m9.figshare.3395704. Slice 25 of 54; D, f and D* maps are the author's own fit.</span>
+    <span>Model: S(b)/S(0) = f·e<sup>−b·D*</sup> + (1 − f)·e<sup>−b·D</sup> (IVIM, Le Bihan et al., Radiology 1988).
+      True-change limits: QIBA DWI Profile, 2022. Lowest b-value above 0: Kooreman et al., Radiother Oncol 2020.</span>
+  </footer>
+</div>
+
+<script src="ivim_slice.js"></script>
+<script>
+(() => {
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const NS = "http://www.w3.org/2000/svg";
+  const k = x => (x * 1e3).toFixed(2);                    // to ×10⁻³ mm²/s
+  const pct = x => (x >= 0 ? "+" : "−") + Math.abs(x * 100).toFixed(Math.abs(x) < 0.1 ? 1 : 0) + " %";
+
+  // ---------- task ticks (remembered in this browser only) ----------
+  document.querySelectorAll(".tasks input[type=checkbox]").forEach(cb => {
+    try { cb.checked = localStorage.getItem("task-" + cb.id) === "1"; } catch (e) { /* storage blocked */ }
+    cb.addEventListener("change", () => { try { localStorage.setItem("task-" + cb.id, cb.checked ? "1" : "0"); } catch (e) { /* ignore */ } });
+  });
+
+  // ---------- tabs (hash routing) ----------
+  const TABS = ["images", "treatment", "noise"];
+  function show(tab) {
+    if (!TABS.includes(tab)) tab = "images";
+    for (const t of TABS) $("tab-" + t).hidden = t !== tab;
+    document.querySelectorAll("nav a").forEach(a => a.setAttribute("aria-current", a.dataset.tab === tab ? "page" : "false"));
+  }
+  window.addEventListener("hashchange", () => show(location.hash.slice(1)));
+  show(location.hash.slice(1));
+
+  const slug = key => String(key).replace(/[^A-Za-z0-9]+/g, "-");
+  function chips(container, items, current, onPick) {
+    const box = $(container);
+    box.innerHTML = "";
+    for (const it of items) {
+      const b = document.createElement("button");
+      b.type = "button"; b.innerHTML = it.html || it.label; b.id = container + "-" + slug(it.key);
+      b.setAttribute("aria-pressed", String(it.key === current));
+      b.addEventListener("click", () => { setPressed(container, it.key); onPick(it); });
+      box.appendChild(b);
+    }
+  }
+  function setPressed(container, key) {
+    $(container).querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x.id === container + "-" + slug(key))));
+  }
+
+  // ---------- SVG helpers ----------
+  function el(name, attrs, parent, style) {
+    const e = document.createElementNS(NS, name);
+    for (const a in attrs) e.setAttribute(a, attrs[a]);
+    if (style) e.setAttribute("style", style);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function text(parent, x, y, s, style, anchor = "middle") {
+    const t = el("text", { x, y, "text-anchor": anchor }, parent, "font-family:var(--font);font-size:13px;fill:var(--muted);" + (style || ""));
+    t.textContent = s;
+    return t;
+  }
+  function signalAxes(svg, id, ymin, ticks, H = 390) {
+    svg.innerHTML = "";
+    const m = { l: 58, r: 16, t: 14, b: 46 }, W = 640;
+    const yl0 = Math.log(ymin), yl1 = Math.log(1.1);
+    const X = b => m.l + b / 1000 * (W - m.l - m.r);
+    const Y = v => m.t + (yl1 - Math.log(v)) / (yl1 - yl0) * (H - m.t - m.b);
+    const g = el("g", {}, svg);
+    for (const v of ticks) {
+      el("line", { x1: m.l, x2: W - m.r, y1: Y(v), y2: Y(v) }, g, "stroke:var(--line);stroke-width:1");
+      text(g, m.l - 8, Y(v) + 4, String(v), "", "end");
+    }
+    for (let b = 0; b <= 1000; b += 200) {
+      el("line", { x1: X(b), x2: X(b), y1: m.t, y2: H - m.b }, g, "stroke:var(--line);stroke-width:1");
+      text(g, X(b), H - m.b + 18, String(b));
+    }
+    text(g, (m.l + W - m.r) / 2, H - 6, "b-value (s/mm²)");
+    const yl = text(g, 0, 0, "signal relative to b = 0 (log scale)");
+    yl.setAttribute("transform", `translate(16 ${(m.t + H - m.b) / 2}) rotate(-90)`);
+    const clip = el("clipPath", { id }, el("defs", {}, svg));
+    el("rect", { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b }, clip);
+    const c = el("g", { "clip-path": `url(#${id})` }, svg);
+    const top = el("g", {}, svg);
+    return { X, Y, c, top, ymin };
+  }
+  function curve(ax, fn, style) {
+    let d = "";
+    for (let b = 0; b <= 1000; b += 5) d += (d ? "L" : "M") + ax.X(b).toFixed(1) + " " + ax.Y(Math.max(fn(b), ax.ymin * 0.5)).toFixed(1);
+    return el("path", { d }, ax.c, "fill:none;" + style);
+  }
+  function adcLine(ax, b1, s1, b2, s2, style) {
+    const slope = Math.log(s2 / s1) / (b2 - b1);
+    return curve(ax, b => s1 * Math.exp(slope * (b - b1)), style);
+  }
+  function point(ax, b, v, style, r = 5.5) { return el("circle", { cx: ax.X(b), cy: ax.Y(Math.max(v, ax.ymin * 0.5)), r }, ax.c, style); }
+
+  // ---------- colour maps ----------
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function ramp(stops) {            // stops: [[t, [r,g,b]], ...]
+    return t => {
+      t = Math.min(Math.max(t, 0), 1);
+      for (let i = 1; i < stops.length; i++) if (t <= stops[i][0]) {
+        const [t0, c0] = stops[i - 1], [t1, c1] = stops[i], u = (t - t0) / (t1 - t0);
+        return [lerp(c0[0], c1[0], u), lerp(c0[1], c1[1], u), lerp(c0[2], c1[2], u)];
+      }
+      return stops[stops.length - 1][1];
+    };
+  }
+  const GREY = t => { t = Math.min(Math.max(t, 0), 1) * 255; return [t, t, t]; };
+  // course palette: low -> high = blue -> red, on a dark ground
+  const HEAT = ramp([[0, [8, 12, 30]], [0.35, [22, 102, 214]], [0.7, [214, 31, 31]], [1, [255, 214, 170]]]);
+  const DIVERGE = ramp([[0, [22, 102, 214]], [0.5, [70, 70, 74]], [1, [214, 31, 31]]]);
+
+  // ---------- data ----------
+  const DATA = window.IVIM_SLICE;
+  function b64(s) { const bin = atob(s), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; }
+  let R = 0, C = 0, N = 0, BV = [], stack = null, mask = null, rois = {}, fit = {}, a0 = null, a2 = null, diff = null;
+  if (DATA) {
+    R = DATA.rows; C = DATA.cols; N = R * C; BV = DATA.bvals;
+    stack = new Uint16Array(b64(DATA.stack).buffer);
+    mask = b64(DATA.mask);
+    for (const name in DATA.rois) rois[name] = b64(DATA.rois[name]);
+    for (const name in DATA.fit) fit[name] = new Float32Array(b64(DATA.fit[name]).buffer);
+    const ib = b => BV.indexOf(b);
+    a0 = new Float32Array(N); a2 = new Float32Array(N); diff = new Float32Array(N);
+    for (let i = 0; i < N; i++) {
+      if (!mask[i]) continue;
+      const s0 = Math.max(stack[ib(0) * N + i], 1), s2 = Math.max(stack[ib(200) * N + i], 1), s8 = Math.max(stack[ib(800) * N + i], 1);
+      a0[i] = Math.log(s0 / s8) / 800; a2[i] = Math.log(s2 / s8) / 600; diff[i] = a2[i] > 0 ? a0[i] / a2[i] - 1 : 0;
+    }
+  }
+  const sig = (bi, i) => stack[bi * N + i] / DATA.scale;
+  function curveOf(voxels) {        // mean signal per b-value, normalised to b = 0
+    const out = BV.map(() => 0);
+    for (const i of voxels) BV.forEach((_, bi) => { out[bi] += sig(bi, i); });
+    return out.map(v => v / out[0]);
+  }
+  const roiVoxels = {};
+  for (const name in rois) { roiVoxels[name] = []; rois[name].forEach((v, i) => { if (v) roiVoxels[name].push(i); }); }
+
+  // ---------- image viewer ----------
+  const UP = 3;   // display upscale
+  function Viewer(canvasId, tagId, onPick) {
+    const cv = $(canvasId), ctx = cv.getContext("2d");
+    const off = document.createElement("canvas"); off.width = C; off.height = R;
+    const octx = off.getContext("2d");
+    cv.width = C * UP; cv.height = R * UP;
+    let outline = null, outlineColor = "#e0821a", cross = null;
+    function draw(values, lo, hi, cmap, tag) {
+      const img = octx.createImageData(C, R);
+      for (let i = 0; i < N; i++) {
+        const [r, g, b] = cmap((values(i) - lo) / (hi - lo));
+        img.data[4 * i] = r; img.data[4 * i + 1] = g; img.data[4 * i + 2] = b; img.data[4 * i + 3] = 255;
+      }
+      octx.putImageData(img, 0, 0);
+      this._redraw = () => {
+        ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(off, 0, 0, cv.width, cv.height);
+        if (outline) {
+          const ov = document.createElement("canvas"); ov.width = C; ov.height = R;
+          const oc = ov.getContext("2d"), od = oc.createImageData(C, R);
+          const hex = outlineColor.replace("#", ""), rgb = [0, 2, 4].map(j => parseInt(hex.substr(j, 2), 16));
+          let cnt = 0; for (let i = 0; i < N; i++) cnt += outline[i] ? 1 : 0;
+          const alpha = cnt > 2000 ? 55 : 150;   // large regions faint, so the anatomy stays visible
+          for (let i = 0; i < N; i++) if (outline[i]) { od.data[4 * i] = rgb[0]; od.data[4 * i + 1] = rgb[1]; od.data[4 * i + 2] = rgb[2]; od.data[4 * i + 3] = alpha; }
+          oc.putImageData(od, 0, 0);
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(ov, 0, 0, cv.width, cv.height);
+        }
+        if (cross) {
+          const [r, c] = cross;
+          ctx.strokeStyle = outlineColor; ctx.lineWidth = 2;
+          ctx.strokeRect((c - 1) * UP, (r - 1) * UP, 3 * UP, 3 * UP);
+          ctx.beginPath();
+          ctx.moveTo((c + 0.5) * UP, (r - 5) * UP); ctx.lineTo((c + 0.5) * UP, (r - 1.5) * UP);
+          ctx.moveTo((c + 0.5) * UP, (r + 2.5) * UP); ctx.lineTo((c + 0.5) * UP, (r + 6) * UP);
+          ctx.moveTo((c - 5) * UP, (r + 0.5) * UP); ctx.lineTo((c - 1.5) * UP, (r + 0.5) * UP);
+          ctx.moveTo((c + 2.5) * UP, (r + 0.5) * UP); ctx.lineTo((c + 6) * UP, (r + 0.5) * UP);
+          ctx.stroke();
+        }
+      };
+      this._redraw();
+      $(tagId).textContent = tag;
+    }
+    this.draw = draw;
+    this.setOutline = (m, color) => { outline = m; cross = null; if (color) outlineColor = color; this._redraw && this._redraw(); };
+    this.setCross = (rc, color) => { cross = rc; outline = null; if (color) outlineColor = color; this._redraw && this._redraw(); };
+    function pick(ev) {
+      const rect = cv.getBoundingClientRect();
+      const c = Math.floor((ev.clientX - rect.left) / rect.width * C), r = Math.floor((ev.clientY - rect.top) / rect.height * R);
+      if (r < 1 || c < 1 || r >= R - 1 || c >= C - 1 || !mask[r * C + c]) return;
+      onPick(r, c);
+    }
+    cv.addEventListener("click", pick);
+  }
+  function colorbar(boxId, cmap, lo, hi, label) {
+    const box = $(boxId);
+    box.innerHTML = `<span class="mono">${lo}</span><canvas width="256" height="1"></canvas><span class="mono">${hi}</span><span>${label}</span>`;
+    const c = box.querySelector("canvas").getContext("2d"), img = c.createImageData(256, 1);
+    for (let i = 0; i < 256; i++) { const [r, g, b] = cmap(i / 255); img.data[4 * i] = r; img.data[4 * i + 1] = g; img.data[4 * i + 2] = b; img.data[4 * i + 3] = 255; }
+    c.putImageData(img, 0, 0);
+  }
+
+  // ---------- STEP 1 ----------
+  const ROI_COLORS = { "Brain tissue": "#2a93b0", "CSF (cistern)": "#9a6ce0", "Vessels + CSF (Sylvian fissure)": "#e5484d", "Your click": "#e0821a" };
+  const st1 = { view: "b", bi: 0, region: "Brain tissue", click: null, blo: 0, log: [] };
+  let v1 = null;
+
+  function regionVoxels() {
+    if (st1.region === "Your click" && st1.click) {
+      const [r, c] = st1.click, out = [];
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { const i = (r + dr) * C + c + dc; if (mask[i]) out.push(i); }
+      return out;
+    }
+    return roiVoxels[st1.region] || [];
+  }
+  function drawView1() {
+    const hiImg = (() => { let m = 0; for (let i = 0; i < N; i++) if (mask[i]) m = Math.max(m, sig(0, i)); return m * 0.85; })();
+    if (st1.view === "b") {
+      const bi = st1.bi;
+      v1.draw(i => mask[i] ? sig(bi, i) : 0, 0, hiImg * (BV[bi] >= 400 ? 0.7 : 1), GREY, `b = ${BV[bi]} s/mm²`);
+      colorbar("cb1", GREY, "0", "max", "signal (same window for b ≤ 200)");
+    } else if (st1.view === "a0" || st1.view === "a2") {
+      const arr = st1.view === "a0" ? a0 : a2;
+      v1.draw(i => arr[i] * 1e3, 0, 2.0, GREY, st1.view === "a0" ? "ADC from b 0 & 800" : "ADC from b 200 & 800");
+      colorbar("cb1", GREY, "0", "2.0", "× 10⁻³ mm²/s (CSF is brighter)");
+    } else {
+      v1.draw(i => mask[i] ? diff[i] : 0, -0.3, 0.3, DIVERGE, "ADC(0,800) vs ADC(200,800)");
+      colorbar("cb1", DIVERGE, "−30 %", "+30 %", "red: b = 0 makes the ADC higher");
+    }
+    $("b-slider-box").hidden = st1.view !== "b";
+    showRegionOnImage();
+  }
+  function showRegionOnImage() {
+    const col = ROI_COLORS[st1.region];
+    if (st1.region === "Your click" && st1.click) v1.setCross(st1.click, col);
+    else v1.setOutline(rois[st1.region], col);
+  }
+  function biasPill(r) {
+    return Math.abs(r) < 0.02 ? `<span class="pill ok">within 2 %</span>` : `<span class="pill bias">${pct(r)}</span>`;
+  }
+  function draw1() {
+    const vox = regionVoxels();
+    const y = curveOf(vox);
+    const ib = b => BV.indexOf(b);
+    // fit the log axis to this region: the lowest tick below 85 % of its smallest signal
+    const T = [0.02, 0.03, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1.0];
+    const ymin = [...T].reverse().find(t => t <= 0.85 * Math.min(...y)) || 0.02;
+    const ax = signalAxes($("plot1"), "clip1", ymin, T.filter(t => t >= ymin), 400);
+    // the bias-free reference: ADC from b 200 & 800, drawn faintly
+    adcLine(ax, 200, y[ib(200)], 800, y[ib(800)], "stroke:var(--teal);stroke-width:1.6;stroke-dasharray:6 5");
+    BV.forEach((b, bi) => point(ax, b, y[bi], "fill:var(--ink)", 3.6));
+    const blo = st1.blo, a = Math.log(y[ib(blo)] / y[ib(800)]) / (800 - blo), ref = Math.log(y[ib(200)] / y[ib(800)]) / 600;
+    adcLine(ax, blo, y[ib(blo)], 800, y[ib(800)], "stroke:var(--orange);stroke-width:2.2");
+    for (const b of [blo, 800]) {
+      point(ax, b, y[ib(b)], "fill:var(--orange);stroke:var(--bg);stroke-width:2", 6);
+      text(ax.top, ax.X(b) + (b === 0 ? 10 : 0), ax.Y(y[ib(b)]) - 12, "b " + b, "fill:var(--orange);font-weight:bold", b === 0 ? "start" : "middle");
+    }
+    const name = st1.region === "Your click" ? "Your click (3 × 3 voxels)" : st1.region;
+    $("ro1-label").textContent = `ADC · ${name}`;
+    $("adc1").innerHTML = `${k(a)} <small>× 10⁻³ mm²/s</small>`;
+    $("vs1").innerHTML = blo === 200
+      ? `This is the reference: b = 200 leaves out the fast-moving water. <span class="note">(dashed teal line)</span>`
+      : `vs ADC from b 200 &amp; 800 (${k(ref)}): ${biasPill(a / ref - 1)}`;
+    const key = name + "|" + blo;
+    st1.log = [{ key, name, blo, a, ref }, ...st1.log.filter(r => r.key !== key)].slice(0, 6);
+    renderLog();
+  }
+  function renderLog() {
+    $("log").innerHTML = st1.log.map(r =>
+      `<tr><td>${r.name}</td><td class="mono">${r.blo} &amp; 800</td><td class="num">${k(r.a)}</td><td class="num">${pct(r.a / r.ref - 1)}</td></tr>`
+    ).join("") || `<tr><td colspan="4" class="note">Pick a region or click the image to add a reading.</td></tr>`;
+  }
+
+  if (DATA) {
+    v1 = new Viewer("cv1", "tag1", (r, c) => {
+      st1.click = [r, c]; st1.region = "Your click";
+      setPressed("roi-chips", "Your click"); $("roi-chips-Your-click").hidden = false;
+      showRegionOnImage(); draw1();
+    });
+    chips("view-chips", [
+      { key: "b", label: "Images (b-value)" }, { key: "a0", label: "ADC b 0 & 800" },
+      { key: "a2", label: "ADC b 200 & 800" }, { key: "diff", label: "Difference" }], "b",
+      it => { st1.view = it.key; drawView1(); });
+    const regions = ["Brain tissue", "CSF (cistern)", "Vessels + CSF (Sylvian fissure)", "Your click"];
+    chips("roi-chips", regions.map(r => ({ key: r, html: `<span class="roi-dot" style="background:${ROI_COLORS[r]}"></span>${r}` })),
+      st1.region, it => { st1.region = it.key; showRegionOnImage(); draw1(); });
+    $("roi-chips-Your-click").hidden = true;
+    chips("scheme-chips", [0, 100, 200].map(b => ({ key: String(b), label: `${b} & 800`, b })), "0",
+      it => { st1.blo = it.b; draw1(); });
+    $("b-slider").addEventListener("input", e => { st1.bi = +e.target.value; $("b-slider-val").textContent = BV[st1.bi]; drawView1(); });
+    $("clear-log").addEventListener("click", () => { st1.log = []; renderLog(); });
+    drawView1(); draw1();
+  } else {
+    $("tab-images").innerHTML = `<div class="message">The brain data (ivim_slice.js) did not load. Keep it in the same folder as this page.</div>`;
+  }
+
+  // ---------- model (steps 2 and 3) ----------
+  const D = 1.0e-3, DSTAR = 20e-3;
+  const S = (b, f, d = D, ds = DSTAR) => f * Math.exp(-b * ds) + (1 - f) * Math.exp(-b * d);
+  const adc = (b1, b2, f) => Math.log(S(b1, f) / S(b2, f)) / (b2 - b1);
+  const TICKS = [0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1.0];
+
+  // ---------- STEP 2 ----------
+  const F_BEFORE = 0.25, F_AFTER = 0.08;
+  const st2 = { blo: 0, revealed: false };
+  const SCHEMES2 = [0, 200, 50];
+  chips("b2-chips", [0, 200].map(b => ({ key: String(b), label: `${b} & 800`, b })), "0", it => { st2.blo = it.b; draw2(); });
+  $("reveal").addEventListener("click", () => { st2.revealed = true; draw2(); });
+  $("hide").addEventListener("click", () => { st2.revealed = false; draw2(); });
+
+  function draw2() {
+    const { blo, revealed } = st2;
+    const ax = signalAxes($("plot2"), "clip2", 0.2, TICKS);
+    curve(ax, b => S(b, F_BEFORE), "stroke:var(--guide);stroke-width:2;stroke-dasharray:7 5");
+    curve(ax, b => S(b, F_AFTER), "stroke:var(--ink);stroke-width:2.5");
+    if (revealed) {
+      adcLine(ax, blo, S(blo, F_BEFORE), 800, S(800, F_BEFORE), "stroke:var(--orange);stroke-width:1.6;stroke-dasharray:4 4;opacity:.8");
+      adcLine(ax, blo, S(blo, F_AFTER), 800, S(800, F_AFTER), "stroke:var(--orange);stroke-width:2");
+    }
+    for (const [f, fill] of [[F_BEFORE, "var(--bg)"], [F_AFTER, "var(--orange)"]])
+      for (const b of [blo, 800]) point(ax, b, S(b, f), `fill:${fill};stroke:var(--orange);stroke-width:2`, 5);
+    $("lg2-adc").hidden = !revealed;
+    $("t2").innerHTML = SCHEMES2.map(b => {
+      const a0_ = adc(b, 800, F_BEFORE), a1_ = adc(b, 800, F_AFTER);
+      const stretch = b === 50 ? ` <span class="note">(fast pairs)</span>` : "";
+      if (!revealed) return `<tr><td class="mono">${b} &amp; 800${stretch}</td><td class="hidden-val">?</td><td class="hidden-val">?</td><td class="hidden-val">?</td></tr>`;
+      return `<tr><td class="mono">${b} &amp; 800${stretch}</td><td class="num">${k(a0_)}</td><td class="num">${k(a1_)}</td><td class="num"><b>${pct(a1_ / a0_ - 1)}</b></td></tr>`;
+    }).join("");
+    $("reveal").hidden = revealed; $("hide").hidden = !revealed;
+    $("msg2").hidden = !revealed; $("bars").hidden = !revealed;
+    if (revealed) {
+      const c0 = adc(0, 800, F_AFTER) / adc(0, 800, F_BEFORE) - 1;
+      $("msg2").innerHTML = `With b = 0 in the fit, ADC falls <b>${pct(c0).replace("−", "")}</b>. In the brain, QIBA calls a change
+        above <b>11 %</b> real: this fall would be read as a real change, and a falling ADC reads as <b>no response</b>.
+        Yet the cells never changed. Only the blood did. With b = 200 the ADC hardly moves.`;
+      drawBars();
+    }
+  }
+  function drawBars() {
+    const svg = $("bars"); svg.innerHTML = "";
+    const m = { l: 110, r: 20, t: 44, b: 34 }, W = 640, H = 200, MAX = 0.5;
+    const X = v => m.l + v / MAX * (W - m.l - m.r);
+    const rows = SCHEMES2.map(b => ({ b, v: -(adc(b, 800, F_AFTER) / adc(b, 800, F_BEFORE) - 1) }));
+    const rh = (H - m.t - m.b) / rows.length;
+    for (let v = 0; v <= MAX + 1e-9; v += 0.1) {
+      el("line", { x1: X(v), x2: X(v), y1: m.t, y2: H - m.b }, svg, "stroke:var(--line)");
+      text(svg, X(v), H - m.b + 16, Math.round(v * 100) + " %");
+    }
+    text(svg, (m.l + W - m.r) / 2, H - 2, "fall in ADC after treatment");
+    rows.forEach((r, i) => {
+      const y = m.t + i * rh + rh * 0.2;
+      el("rect", { x: X(0), y, width: Math.max(X(r.v) - X(0), 1.5), height: rh * 0.6 }, svg, "fill:var(--orange)");
+      text(svg, m.l - 10, y + rh * 0.42, `b ${r.b} & 800`, "fill:var(--ink)", "end");
+      text(svg, X(r.v) + 6, y + rh * 0.42, (r.v * 100).toFixed(1) + " %", "fill:var(--ink);font-family:var(--mono)", "start");
+    });
+    const lim = [["brain 11 %", 0.11, 12, "font-weight:bold"], ["breast 13 %", 0.13, 28, ""], ["prostate 47 %", 0.47, 12, ""]];
+    for (const [lab, v, ty, extra] of lim) {
+      el("line", { x1: X(v), x2: X(v), y1: m.t - 6, y2: H - m.b }, svg, "stroke:var(--red);stroke-width:1.5;stroke-dasharray:5 3");
+      text(svg, X(v) + (v === 0.47 ? -4 : 4), ty, lab, "fill:var(--red);font-size:12px;" + extra, v === 0.47 ? "end" : "start");
+    }
+    text(svg, m.l - 10, 12, "QIBA true-change limit:", "font-size:12px", "end");
+  }
+  draw2();
+
+  // ---------- STEP 3a: real IVIM maps ----------
+  const MAPS = {
+    D: { label: "D (tissue diffusion)", arr: () => fit.D, lo: 0, hi: 2.0, scale: 1e3, cmap: GREY, unit: "× 10⁻³ mm²/s" },
+    f: { label: "f (perfusion fraction)", arr: () => fit.f, lo: 0, hi: 0.3, scale: 1, cmap: HEAT, unit: "" },
+    Dstar: { label: "D* (blood pseudo-diffusion)", arr: () => fit.Dstar, lo: 0, hi: 30, scale: 1e3, cmap: HEAT, unit: "× 10⁻³ mm²/s" },
+  };
+  const st3m = { map: "D" };
+  let v3 = null;
+  function drawMap() {
+    const M = MAPS[st3m.map], arr = M.arr();
+    v3.draw(i => mask[i] ? arr[i] * M.scale : 0, M.lo, M.hi, M.cmap, M.label);
+    colorbar("cb3", M.cmap, String(M.lo), String(M.hi), M.unit);
+  }
+  if (DATA) {
+    v3 = new Viewer("cv3", "tag3", (r, c) => {
+      const i = r * C + c;
+      v3.setCross([r, c], "#e0821a");
+      $("ro3-label").textContent = "This voxel (the author's fit)";
+      $("ro3").innerHTML = `D ${k(fit.D[i])} · f ${fit.f[i].toFixed(2)} · D* ${(fit.Dstar[i] * 1e3).toFixed(1)} <span class="note">(D, D* × 10⁻³ mm²/s)</span>`;
+    });
+    chips("map-chips", Object.keys(MAPS).map(key => ({ key, label: key === "Dstar" ? "D*" : key })), "D",
+      it => { st3m.map = it.key; drawMap(); });
+    drawMap();
+  }
+
+  // ---------- STEP 3b: simulated repeated scans ----------
+  const F3 = 0.15;
+  const BV3 = [0, 10, 20, 40, 60, 100, 150, 200, 400, 600, 800];
+  const st3 = { snr: 50, scans: [], last: null };
+  chips("snr-chips", [[100, "100 · large ROI"], [50, "50"], [20, "20 · one voxel"]].map(([s, l]) => ({ key: String(s), label: l, s })),
+    "50", it => { st3.snr = it.s; st3.scans = []; scan(1); });
+  $("scan1").addEventListener("click", () => scan(1));
+  $("scan10").addEventListener("click", () => scan(10));
+  $("clear3").addEventListener("click", () => { st3.scans = []; st3.last = null; draw3(); });
+
+  function gauss() {
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+  const DS_GRID = Array.from({ length: 200 }, (_, i) => Math.exp(Math.log(2e-3) + i / 199 * (Math.log(300e-3) - Math.log(2e-3))));
+  function fitIVIM(y) {
+    const hi = BV3.map((b, i) => [b, Math.log(Math.max(y[i], 1e-6))]).filter(p => p[0] >= 200);
+    const n = hi.length, mx = hi.reduce((s, p) => s + p[0], 0) / n, my = hi.reduce((s, p) => s + p[1], 0) / n;
+    const slope = hi.reduce((s, p) => s + (p[0] - mx) * (p[1] - my), 0) / hi.reduce((s, p) => s + (p[0] - mx) ** 2, 0);
+    const d = -slope, sint = Math.exp(my - slope * mx), s0 = y[0], f = 1 - sint / s0;
+    let best = Infinity, ds = DS_GRID[0];
+    for (const g of DS_GRID) {
+      let e = 0;
+      BV3.forEach((b, i) => { if (b <= 200) { const m = s0 * (f * Math.exp(-b * g) + (1 - f) * Math.exp(-b * d)); e += (m - y[i]) ** 2; } });
+      if (e < best) { best = e; ds = g; }
+    }
+    return { d, f, ds, s0 };
+  }
+  function scan(times) {
+    const sd = 1 / st3.snr;
+    for (let t = 0; t < times; t++) {
+      const y = BV3.map(b => { const s = S(b, F3); return Math.hypot(s + sd * gauss(), sd * gauss()); });
+      const p = fitIVIM(y);
+      st3.last = { y, p };
+      st3.scans.push(p);
+    }
+    draw3();
+  }
+  function strip(id, label, vals, truth, lo, hi, log, fmt) {
+    const svg = $(id); svg.innerHTML = "";
+    const m = { l: 44, r: 14 }, W = 400, ymid = 36;
+    const tf = v => log ? Math.log(v) : v;
+    const X = v => m.l + (tf(Math.min(Math.max(v, lo), hi)) - tf(lo)) / (tf(hi) - tf(lo)) * (W - m.l - m.r);
+    text(svg, 4, ymid + 5, label, "fill:var(--ink);font-weight:bold;font-size:14px", "start");
+    el("line", { x1: X(lo), x2: X(hi), y1: ymid, y2: ymid }, svg, "stroke:var(--line);stroke-width:1");
+    const ticks = log ? [2e-3, 5e-3, 10e-3, 20e-3, 50e-3, 100e-3, 300e-3] : [lo, (lo + hi) / 2, hi];
+    for (const t of ticks) {
+      el("line", { x1: X(t), x2: X(t), y1: ymid - 4, y2: ymid + 4 }, svg, "stroke:var(--guide)");
+      text(svg, X(t), ymid + 20, fmt(t), "font-size:11.5px");
+    }
+    el("line", { x1: X(truth), x2: X(truth), y1: ymid - 16, y2: ymid + 8 }, svg, "stroke:var(--ink);stroke-width:2");
+    vals.forEach((v, i) => el("circle", { cx: X(v), cy: ymid - 6 + ((i * 7) % 5) - 2, r: i === vals.length - 1 ? 5 : 3.6 }, svg,
+      `fill:var(--orange);opacity:${i === vals.length - 1 ? 1 : 0.55}`));
+    let s = `true ${fmt(truth)}`;
+    if (vals.length > 1) {
+      const sorted = [...vals].sort((a, b) => a - b);
+      s += ` · scans ${fmt(sorted[0])} to ${fmt(sorted[sorted.length - 1])}`;
+    } else if (vals.length === 1) s += ` · fit ${fmt(vals[0])}`;
+    text(svg, W - m.r, 12, s, "font-size:12px;font-family:var(--mono)", "end");
+  }
+  function draw3() {
+    const ax = signalAxes($("plot3"), "clip3", 0.2, TICKS);
+    curve(ax, b => S(b, F3), "stroke:var(--guide);stroke-width:2;stroke-dasharray:7 5");
+    if (st3.last) {
+      const { y, p } = st3.last;
+      curve(ax, b => p.s0 * (p.f * Math.exp(-b * p.ds) + (1 - p.f) * Math.exp(-b * p.d)), "stroke:var(--ink);stroke-width:2.2");
+      BV3.forEach((b, i) => point(ax, b, y[i], "fill:var(--orange);stroke:var(--bg);stroke-width:1.5", 4.5));
+    }
+    const sc = st3.scans;
+    strip("strip-D", "D", sc.map(p => p.d), D, 0, 2e-3, false, v => (v * 1e3).toFixed(2));
+    strip("strip-f", "f", sc.map(p => p.f), F3, 0, 0.5, false, v => v.toFixed(2));
+    strip("strip-Ds", "D*", sc.map(p => p.ds), DSTAR, 2e-3, 300e-3, true, v => String(Math.round(v * 1e3)));
+    $("nscans").textContent = `${sc.length} scan${sc.length === 1 ? "" : "s"} at SNR ${st3.snr}. D and D* in × 10⁻³ mm²/s; the black tick is the true value.`;
+    $("msg3").hidden = sc.length < 10;
+  }
+  scan(1);
+})();
+</script>
+
+</body>
+</html>
