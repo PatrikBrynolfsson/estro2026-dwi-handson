@@ -136,7 +136,7 @@ td.hidden-val { color: var(--guide); text-align: right; }
 .tasks li::before { counter-increment: task; content: counter(task) "."; font-family: var(--mono); color: var(--teal); font-weight: bold; padding-top: 1px; grid-column: 2; grid-row: 1; }
 .tasks li input { grid-column: 1; grid-row: 1; width: 17px; height: 17px; margin: 2px 0 0; accent-color: var(--teal); cursor: pointer; }
 .tasks li label { grid-column: 3; grid-row: 1; cursor: pointer; }
-.tasks li.extra label::before { content: "Fast pairs · "; color: var(--teal); font-weight: bold; }
+.tasks li.extra label::before { content: "Bonus question · "; color: var(--teal); font-weight: bold; }
 .tasks li input:checked ~ label { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--guide); }
 .task { border-left: 3px solid var(--teal); padding: 2px 0 2px 12px; font-size: 14px; }
 .task b { display: block; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--teal); }
@@ -669,7 +669,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
     $("lg2-adc").hidden = !revealed;
     $("t2").innerHTML = SCHEMES2.map(b => {
       const a0_ = adc(b, 800, F_BEFORE), a1_ = adc(b, 800, F_AFTER);
-      const stretch = b === 50 ? ` <span class="note">(fast pairs)</span>` : "";
+      const stretch = b === 50 ? ` <span class="note">(bonus question)</span>` : "";
       if (!revealed) return `<tr><td class="mono">${b} &amp; 800${stretch}</td><td class="hidden-val">?</td><td class="hidden-val">?</td><td class="hidden-val">?</td></tr>`;
       return `<tr><td class="mono">${b} &amp; 800${stretch}</td><td class="num">${k(a0_)}</td><td class="num">${k(a1_)}</td><td class="num"><b>${pct(a1_ / a0_ - 1)}</b></td></tr>`;
     }).join("");

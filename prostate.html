@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prostate ADC Case</title>
+</head>
+<body>
+
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: the two scans side by side like a reading-room comparison, the numbers and the histogram beside them,
+   the reveal at the end. Same palette as the sandbox: orange = what you measure (ROI, scan 2), grey = scan 1,
+   red = the true-change limits. */
+:root {
+  --bg: #ffffff;
+  --surface: #f4f6f9;
+  --line: #dde2ea;
+  --ink: #1a1a1a;
+  --muted: #5f6672;
+  --guide: #9aa0a6;
+  --teal: #2a93b0;
+  --red: #e5484d;
+  --orange: #e0821a;
+  --scan1: #7b8794;
+  --chip: #eef1f5;
+  --chip-on: #1a1a1a;
+  --chip-on-fg: #ffffff;
+  --font: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  --mono: Consolas, "SF Mono", Menlo, "Liberation Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14171c; --surface: #1c2027; --line: #2e3440; --ink: #e9ecf1; --muted: #a2aab7; --guide: #5f6773;
+    --teal: #4cb4d0; --red: #f2696d; --orange: #f09a3e; --scan1: #a7b0bd; --chip: #232832;
+    --chip-on: #e9ecf1; --chip-on-fg: #14171c; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14171c; --surface: #1c2027; --line: #2e3440; --ink: #e9ecf1; --muted: #a2aab7; --guide: #5f6773;
+  --teal: #4cb4d0; --red: #f2696d; --orange: #f09a3e; --scan1: #a7b0bd; --chip: #232832;
+  --chip-on: #e9ecf1; --chip-on-fg: #14171c; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 32px;
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+header { display: flex; flex-direction: column; gap: 4px; }
+.eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.eyebrow a { color: inherit; }
+h1 { font-size: 28px; line-height: 1.15; margin: 0; text-wrap: balance; }
+h2 { font-size: 16px; margin: 0; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); max-width: 72ch; }
+
+.tasks { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.tasks h2 { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.tasks h2 .note { font-weight: normal; }
+.tasks ol { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; counter-reset: task; }
+.tasks li { display: grid; grid-template-columns: 22px 26px minmax(0, 1fr); gap: 4px; align-items: start; font-size: 14.5px; }
+.tasks li::before { counter-increment: task; content: counter(task) "."; font-family: var(--mono); color: var(--teal); font-weight: bold; padding-top: 1px; grid-column: 2; grid-row: 1; }
+.tasks li input { grid-column: 1; grid-row: 1; width: 17px; height: 17px; margin: 2px 0 0; accent-color: var(--teal); cursor: pointer; }
+.tasks li label { grid-column: 3; grid-row: 1; cursor: pointer; }
+.tasks li.extra label::before { content: "Bonus question · "; color: var(--teal); font-weight: bold; }
+.tasks li input:checked ~ label { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--guide); }
+
+.bench { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 900px) { .bench { grid-template-columns: minmax(0, 1fr); } }
+.figure, .panel { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.viewer-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: stretch; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.vslider { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+.vslider input { writing-mode: vertical-lr; direction: rtl; flex: 1; min-height: 120px; width: 26px; margin: 0; accent-color: var(--teal); }
+.vslider .mono { font-size: 13px; color: var(--ink); white-space: nowrap; }
+.viewer { position: relative; background: #000000; border-radius: 10px; overflow: hidden; }
+.viewer canvas { display: block; width: 100%; height: auto; }
+.viewer .tag { position: absolute; left: 10px; top: 8px; color: #ffffff; font-size: 13px; font-weight: bold; text-shadow: 0 1px 2px #000000; }
+.viewer .side { position: absolute; top: 50%; color: #c8ccd2; font-size: 12px; font-weight: bold; }
+.viewer .side-r { left: 8px; } .viewer .side-l { right: 8px; }
+
+.ctrl { display: flex; flex-direction: column; gap: 6px; }
+.ctrl-label { font-size: 13px; font-weight: bold; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+button {
+  font: inherit; font-size: 14px; color: var(--ink); background: var(--chip); border: 1px solid var(--line);
+  border-radius: 999px; padding: 5px 12px; cursor: pointer;
+}
+button:hover { border-color: var(--guide); }
+button[aria-pressed="true"] { background: var(--chip-on); color: var(--chip-on-fg); border-color: var(--chip-on); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button.primary { background: var(--teal); color: #ffffff; border-color: var(--teal); font-weight: bold; border-radius: 8px; padding: 7px 14px; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.slider { display: flex; align-items: center; gap: 10px; }
+.slider input { flex: 1; min-width: 0; accent-color: var(--teal); }
+
+.table-box { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-size: 13px; color: var(--muted); font-weight: bold; }
+td.num, th.num { text-align: right; }
+td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+tr.main td { font-weight: bold; }
+svg.plot { width: 100%; height: auto; display: block; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.swatch { width: 18px; height: 0; border-top: 3px solid; display: inline-block; }
+.note { font-size: 12.5px; color: var(--muted); }
+.message ul { margin: 6px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 3px; }
+.message { background: var(--surface); border-radius: 10px; padding: 12px 14px; font-size: 14.5px; }
+.reveal { border: 2px solid var(--teal); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+@media (prefers-reduced-motion: no-preference) { button { transition: background .12s, color .12s, border-color .12s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow"><a href="index.html">ESTRO Advanced Imaging 2026 · Hands-on</a> · Block B</div>
+    <h1>Prostate ADC Case</h1>
+    <p class="lede">A man with a tumour in the peripheral zone of the prostate. He was scanned twice, one week apart, on the
+      same 3 T scanner with the same protocol. A radiologist outlined the tumour on the ADC map of each scan.</p>
+  </header>
+
+  <div class="tasks">
+    <h2>Tasks <span class="note">tick them off as you go · write your answers on the worksheet</span></h2>
+    <ol>
+      <li><input type="checkbox" id="b-1"><label for="b-1">Find the tumour on both scans: dark on the ADC map. Move through the slices and switch to T2w.</label></li>
+      <li><input type="checkbox" id="b-2"><label for="b-2">With the <b>expert ROI drawn on ADC</b>, read the mean ADC on scan 1 and scan 2.</label></li>
+      <li><input type="checkbox" id="b-3"><label for="b-3">Now change the ROI: <b>grown 2 mm</b>, <b>shrunk 2 mm</b>, and <b>expert, on T2w</b> (the same radiologist's outline, drawn on the T2w image). How much does the mean move within one scan? Which value moves least: the mean, the median or the 10th percentile?</label></li>
+      <li><input type="checkbox" id="b-4"><label for="b-4">Imagine scan 1 was taken before treatment and scan 2 one week into treatment. Has the tumour responded? Write your answer down, then answer below.</label></li>
+      <li class="extra"><input type="checkbox" id="b-5"><label for="b-5">Does your conclusion depend on which ROI you used?</label></li>
+    </ol>
+  </div>
+
+  <section class="bench">
+    <div class="figure">
+      <div class="row" style="justify-content:space-between">
+        <div class="ctrl">
+          <span class="ctrl-label">Image</span>
+          <div class="chips" id="img-chips"></div>
+        </div>
+        <div class="ctrl">
+          <span class="ctrl-label">ROI</span>
+          <div class="chips" id="roi-chips"></div>
+        </div>
+      </div>
+      <div class="viewer-row">
+      <div class="pair">
+        <div class="viewer"><canvas id="cv0" width="480" height="480" aria-label="Scan 1"></canvas><span class="tag">Scan 1 · day 0</span><span class="side side-r">R</span><span class="side side-l">L</span></div>
+        <div class="viewer"><canvas id="cv1" width="480" height="480" aria-label="Scan 2"></canvas><span class="tag">Scan 2 · day 7</span><span class="side side-r">R</span><span class="side side-l">L</span></div>
+      </div>
+      <div class="vslider">
+        <span class="ctrl-label">Slice</span>
+        <span>head</span>
+        <input type="range" id="slice" min="0" max="4" step="1" value="2" aria-label="Slice (top = towards the head)" aria-orientation="vertical">
+        <span>feet</span>
+        <span class="mono" id="slice-val"></span>
+      </div>
+      </div>
+      <div class="note" id="img-note"></div>
+    </div>
+    <div class="panel">
+      <div class="table-box">
+        <table>
+          <thead><tr><th id="roi-name">Expert, on ADC</th><th class="num">Scan 1</th><th class="num">Scan 2</th><th class="num">Change</th></tr></thead>
+          <tbody id="stats"></tbody>
+        </table>
+      </div>
+      <div class="note">ADC in × 10⁻³ mm²/s, over all slices of the ROI.</div>
+      <svg class="plot" id="hist" viewBox="0 0 560 230" role="img" aria-label="Histogram of ADC in the ROI, both scans"></svg>
+      <div class="legend">
+        <span><i class="swatch" style="border-color:var(--scan1)"></i>scan 1</span>
+        <span><i class="swatch" style="border-color:var(--orange)"></i>scan 2</span>
+      </div>
+      <div class="message" id="roi-effect"></div>
+    </div>
+  </section>
+
+  <section class="reveal" aria-live="polite">
+    <h2>Task 4: has the tumour responded?</h2>
+    <div class="row" id="answers">
+      <button type="button" id="ans-yes">Yes, a response</button>
+      <button type="button" id="ans-no">No response</button>
+      <button type="button" id="ans-unsure">Can't tell</button>
+    </div>
+    <div class="row"><button class="primary" type="button" id="reveal" disabled>What happened between the scans?</button>
+      <span class="note" id="reveal-note">Answer first.</span></div>
+    <div id="reveal-body" hidden>
+      <div class="message"><b>Nothing happened.</b>
+        <ul>
+          <li>This man was never treated.</li>
+          <li>He was in a repeatability study: 15 men, each scanned twice within 2 weeks (Fedorov et al., 2017).</li>
+          <li>Every difference comes from the measurement: positioning, coil, noise, ROI.</li>
+        </ul></div>
+      <svg class="plot" id="bars" viewBox="0 0 640 230" role="img" aria-label="ADC change for each ROI compared with the true-change limits"></svg>
+      <div class="note">Orange: this man. Red lines: limits, not results.</div>
+      <h2>All the men with a tumour in the same study</h2>
+      <svg class="plot" id="cohort" viewBox="0 0 640 170" role="img" aria-label="Change in tumour ADC between two untreated scans, every man in the study"></svg>
+      <div class="note" id="cohort-note"></div>
+      <div class="message"><b>When is a change real?</b>
+        <ul>
+          <li>Only when it is bigger than the limit: <b>47 %</b> for prostate (QIBA), <b>42 %</b> in this study.</li>
+          <li>The limit is not a count of patients. A repeated scan stays inside it <b>19 times out of 20</b>.</li>
+          <li>So 1 in 20 lands outside by chance. Here 1 of 10 did: a tiny lesion, +44 %.</li>
+          <li>Average change with no treatment: <b>16 %</b>. This man's +13 % is ordinary.</li>
+          <li id="roi-method-bullet"></li>
+        </ul></div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Data: QIN-PROSTATE-Repeatability, patient PCAMPMRI-00009 (Fedorov et al., Sci Data 2018; TCIA,
+      doi:10.7937/K9/TCIA.2018.MR1CKGND; CC BY 4.0). 3 T, endorectal coil, DWI b 0 and 1400 s/mm², scanner ADC map;
+      ROI drawn by a radiologist on the ADC map. Grown and shrunk ROIs made for this exercise; "Expert, on T2w" is the radiologist's T2w tumour ROI placed on the ADC map.</span>
+    <span>Repeatability: Fedorov et al., Invest Radiol 2017;52:538–46, Table 5 (tumour ROI mean ADC: repeatability coefficient 42 %, mean difference 16 %). QIBA DWI Profile, 2022 (prostate 47 %).</span>
+  </footer>
+</div>
+
+<script src="prostate_case.js"></script>
+<script>
+(() => {
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const NS = "http://www.w3.org/2000/svg";
+  const CASE = window.PROSTATE_CASE;
+  if (!CASE) { document.querySelector(".bench").innerHTML = `<div class="message">The case data (prostate_case.js) did not load. Keep it in the same folder as this page.</div>`; return; }
+
+  // ---------- task ticks (this browser only) ----------
+  document.querySelectorAll(".tasks input[type=checkbox]").forEach(cb => {
+    try { cb.checked = localStorage.getItem("task-" + cb.id) === "1"; } catch (e) { /* storage blocked */ }
+    cb.addEventListener("change", () => { try { localStorage.setItem("task-" + cb.id, cb.checked ? "1" : "0"); } catch (e) { /* ignore */ } });
+  });
+
+  // ---------- data ----------
+  const b64 = s => { const bin = atob(s), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; };
+  const ROIS = [
+    { key: "expert", bit: 1, label: "Expert, on ADC" },
+    { key: "grow", bit: 2, label: "Grown 2 mm" },
+    { key: "shrink", bit: 4, label: "Shrunk 2 mm" },
+    { key: "t2", bit: 8, label: "Expert, on T2w" },
+  ];
+  const scans = CASE.scans.map(s => {
+    const n = s.size * s.size;
+    return { ...s, n, adc: new Uint16Array(b64(s.adc).buffer), t2: b64(s.t2), roi: b64(s.roi), lt2: b64(s.lesion_t2) };
+  });
+  const st = { img: "adc", roi: "expert", slice: scans[0].lesion_slices[1] ?? 2 };
+
+  function values(scan, bit) {
+    const out = [];
+    for (let i = 0; i < scan.adc.length; i++) if (scan.roi[i] & bit) out.push(scan.adc[i] / 1000);
+    return out.sort((a, b) => a - b);
+  }
+  const q = (v, p) => v.length ? v[Math.min(v.length - 1, Math.floor(p * (v.length - 1) + 0.5))] : NaN;
+  const mean = v => v.reduce((s, x) => s + x, 0) / v.length;
+  const pct = x => (x >= 0 ? "+" : "−") + Math.abs(x * 100).toFixed(0) + " %";
+  const STATS = {};
+  for (const r of ROIS) STATS[r.key] = scans.map(s => {
+    const v = values(s, r.bit);
+    return { n: v.length, cc: v.length * s.voxel_cc, mean: mean(v), median: q(v, 0.5), p10: q(v, 0.1), v };
+  });
+
+  // ---------- chips ----------
+  function chips(id, items, current, onPick) {
+    const box = $(id); box.innerHTML = "";
+    for (const it of items) {
+      const b = document.createElement("button");
+      b.type = "button"; b.textContent = it.label; b.setAttribute("aria-pressed", String(it.key === current));
+      b.addEventListener("click", () => { box.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", "false")); b.setAttribute("aria-pressed", "true"); onPick(it); });
+      box.appendChild(b);
+    }
+  }
+  chips("img-chips", [{ key: "adc", label: "ADC" }, { key: "t2", label: "T2w" }], st.img, it => { st.img = it.key; drawImages(); });
+  // the ROI buttons work on the ADC map, so pressing one from the T2w view switches back to ADC
+  chips("roi-chips", ROIS, st.roi, it => {
+    st.roi = it.key;
+    if (st.img !== "adc") { st.img = "adc"; $("img-chips").querySelectorAll("button").forEach((b, i) => b.setAttribute("aria-pressed", String(i === 0))); }
+    drawImages(); drawStats();
+  });
+  const sl = $("slice");
+  sl.max = String(scans[0].slices - 1); sl.value = String(st.slice);
+  sl.addEventListener("input", () => { st.slice = +sl.value; drawImages(); });
+
+  // ---------- images ----------
+  const UP = 4;
+  function drawImages() {
+    $("slice-val").textContent = `${st.slice + 1} / ${scans[0].slices}`;
+    const bit = ROIS.find(r => r.key === st.roi).bit;
+    scans.forEach((s, si) => {
+      const cv = $("cv" + si), ctx = cv.getContext("2d"), N = s.size, k = Math.min(st.slice, s.slices - 1);
+      const res = st.img === "t2" ? 2 * N : N;
+      const off = document.createElement("canvas"); off.width = res; off.height = res;
+      const oc = off.getContext("2d"), img = oc.createImageData(res, res);
+      for (let i = 0; i < res * res; i++) {
+        const g = st.img === "t2" ? s.t2[k * res * res + i] : Math.min(255, s.adc[k * N * N + i] / 2500 * 255);
+        img.data[4 * i] = img.data[4 * i + 1] = img.data[4 * i + 2] = g; img.data[4 * i + 3] = 255;
+      }
+      oc.putImageData(img, 0, 0);
+      cv.width = N * UP; cv.height = N * UP;
+      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(off, 0, 0, cv.width, cv.height);
+      // ADC: the chosen ROI (orange). T2w: only the radiologist's tumour ROI drawn on T2w (teal), for orientation.
+      if (st.img === "t2") outline(ctx, i => s.lt2[k * 4 * N * N + i] !== 0, 2 * N, UP / 2, "#4cb4d0", []);
+      else outline(ctx, i => (s.roi[k * N * N + i] & bit) !== 0, N, UP, "#f09a3e", []);
+    });
+    $("img-note").textContent = st.img === "adc"
+      ? "ADC map, 0 to 2.5 × 10⁻³ mm²/s: dark = restricted water (dense tumour). The orange line is the ROI."
+      : "T2w at the same position, to help you find the tumour. The outline is the radiologist's, drawn on T2w (the “Expert, on T2w” ROI). All numbers are measured on the ADC map.";
+  }
+
+  function outline(ctx, m, n, cell, color, dash) {
+    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.setLineDash(dash); ctx.beginPath();
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+      if (!m(r * n + c)) continue;
+      if (c === 0 || !m(r * n + c - 1)) { ctx.moveTo(c * cell, r * cell); ctx.lineTo(c * cell, (r + 1) * cell); }
+      if (c === n - 1 || !m(r * n + c + 1)) { ctx.moveTo((c + 1) * cell, r * cell); ctx.lineTo((c + 1) * cell, (r + 1) * cell); }
+      if (r === 0 || !m((r - 1) * n + c)) { ctx.moveTo(c * cell, r * cell); ctx.lineTo((c + 1) * cell, r * cell); }
+      if (r === n - 1 || !m((r + 1) * n + c)) { ctx.moveTo(c * cell, (r + 1) * cell); ctx.lineTo((c + 1) * cell, (r + 1) * cell); }
+    }
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  // ---------- numbers ----------
+  function drawStats() {
+    const r = ROIS.find(x => x.key === st.roi), [a, b] = STATS[st.roi];
+    $("roi-name").textContent = r.label;
+    const row = (name, x, y, f, main, change = true) =>
+      `<tr${main ? ' class="main"' : ""}><td>${name}</td><td class="num">${f(x)}</td><td class="num">${f(y)}</td><td class="num">${change ? pct(y / x - 1) : ""}</td></tr>`;
+    const f2 = v => v.toFixed(2), f3 = v => v.toFixed(3);
+    $("stats").innerHTML =
+      row("Volume (cm³)", a.cc, b.cc, f2, false) +
+      row("Mean ADC", a.mean, b.mean, f3, true) +
+      row("Median ADC", a.median, b.median, f3, false) +
+      row("10th percentile", a.p10, b.p10, f3, false);
+    const e = STATS.expert[0];
+    const t2note = st.roi === "t2" ? " This outline was drawn on T2w. The DWI is shifted 4–6 mm towards the rectum, so on the ADC map it covers partly different tissue. Look at the change column too." : "";
+    $("roi-effect").innerHTML = st.roi === "expert"
+      ? "The radiologist's outline, drawn on the ADC map. Try the other ROIs and watch the mean on scan 1."
+      : `On scan 1 alone, this ROI moves the mean from <b>${e.mean.toFixed(3)}</b> (expert) to <b>${a.mean.toFixed(3)}</b>: <b>${pct(a.mean / e.mean - 1)}</b>, with no change in the patient.${t2note}`;
+    drawHist(a.v, b.v);
+  }
+  function el(name, attrs, parent, style) {
+    const e = document.createElementNS(NS, name);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (style) e.setAttribute("style", style);
+    parent.appendChild(e); return e;
+  }
+  function text(parent, x, y, s, style, anchor = "middle") {
+    const t = el("text", { x, y, "text-anchor": anchor }, parent, "font-family:var(--font);font-size:13px;fill:var(--muted);" + (style || ""));
+    t.textContent = s; return t;
+  }
+  function drawHist(v1, v2) {
+    const svg = $("hist"); svg.innerHTML = "";
+    const m = { l: 44, r: 12, t: 12, b: 40 }, W = 560, H = 230, LO = 0, HI = 2.0, BW = 0.1, NB = Math.round((HI - LO) / BW);
+    const bins = v => { const h = new Array(NB).fill(0); v.forEach(x => { const i = Math.min(NB - 1, Math.max(0, Math.floor((x - LO) / BW))); h[i]++; }); return h.map(c => c / v.length); };
+    const h1 = bins(v1), h2 = bins(v2), ymax = Math.max(0.05, ...h1, ...h2) * 1.1;
+    const X = x => m.l + (x - LO) / (HI - LO) * (W - m.l - m.r), Y = y => H - m.b - y / ymax * (H - m.t - m.b);
+    for (let x = 0; x <= HI + 1e-9; x += 0.5) {
+      el("line", { x1: X(x), x2: X(x), y1: m.t, y2: H - m.b }, svg, "stroke:var(--line)");
+      text(svg, X(x), H - m.b + 18, x.toFixed(1));
+    }
+    text(svg, (m.l + W - m.r) / 2, H - 4, "ADC (× 10⁻³ mm²/s)");
+    const yl = text(svg, 0, 0, "share of voxels"); yl.setAttribute("transform", `translate(14 ${(m.t + H - m.b) / 2}) rotate(-90)`);
+    const step = (h, color, width) => {
+      let d = `M${X(LO)} ${Y(0)}`;
+      h.forEach((y, i) => { d += `L${X(LO + i * BW)} ${Y(y)}L${X(LO + (i + 1) * BW)} ${Y(y)}`; });
+      d += `L${X(HI)} ${Y(0)}`;
+      el("path", { d }, svg, `fill:none;stroke:${color};stroke-width:${width}`);
+    };
+    step(h1, "var(--scan1)", 2); step(h2, "var(--orange)", 2.4);
+    for (const [v, color] of [[mean(v1), "var(--scan1)"], [mean(v2), "var(--orange)"]])
+      el("line", { x1: X(v), x2: X(v), y1: m.t, y2: H - m.b }, svg, `stroke:${color};stroke-width:1.5;stroke-dasharray:5 4`);
+    text(svg, W - m.r, m.t + 12, "dashed: mean", "font-size:12px", "end");
+  }
+
+  // ---------- reveal ----------
+  ["ans-yes", "ans-no", "ans-unsure"].forEach(id => $(id).addEventListener("click", () => {
+    ["ans-yes", "ans-no", "ans-unsure"].forEach(x => $(x).setAttribute("aria-pressed", String(x === id)));
+    $("reveal").disabled = false; $("reveal-note").textContent = "";
+  }));
+  $("reveal").addEventListener("click", () => { $("reveal-body").hidden = false; drawBars(); drawCohort(); roiMethodBullet(); $("reveal").hidden = true; });
+  function drawBars() {
+    const svg = $("bars"); svg.innerHTML = "";
+    const m = { l: 170, r: 24, t: 54, b: 34 }, W = 640, H = 230, MAX = 0.5;
+    const X = v => m.l + v / MAX * (W - m.l - m.r);
+    const rh = (H - m.t - m.b) / ROIS.length;
+    for (let v = 0; v <= MAX + 1e-9; v += 0.1) {
+      el("line", { x1: X(v), x2: X(v), y1: m.t, y2: H - m.b }, svg, "stroke:var(--line)");
+      text(svg, X(v), H - m.b + 16, Math.round(v * 100) + " %");
+    }
+    text(svg, (m.l + W - m.r) / 2, H - 2, "change in mean ADC, scan 1 → scan 2 (no treatment)");
+    ROIS.forEach((r, i) => {
+      const [a, b] = STATS[r.key], ch = b.mean / a.mean - 1, y = m.t + i * rh + rh * 0.2;
+      el("rect", { x: X(0), y, width: Math.max(X(Math.abs(ch)) - X(0), 1.5), height: rh * 0.6 }, svg, "fill:var(--orange)");
+      text(svg, m.l - 10, y + rh * 0.42, r.label, "fill:var(--ink)", "end");
+      text(svg, X(Math.abs(ch)) + 6, y + rh * 0.42, pct(ch), "fill:var(--ink);font-family:var(--mono)", "start");
+    });
+    el("line", { x1: X(0.16), x2: X(0.16), y1: m.t - 6, y2: H - m.b }, svg, "stroke:var(--muted);stroke-width:1.5;stroke-dasharray:2 3");
+    text(svg, X(0.16) + 4, 46, "average change, same study, no treatment: 16 %", "fill:var(--muted);font-size:12px", "start");
+    for (const [lab, v, ty] of [["limit, repeatability study (11 tumours): 42 %", 0.42, 14], ["limit, QIBA prostate: 47 %", 0.47, 28]]) {
+      el("line", { x1: X(v), x2: X(v), y1: m.t - 6, y2: H - m.b }, svg, "stroke:var(--red);stroke-width:1.5;stroke-dasharray:5 3");
+      text(svg, X(v) - 4, ty, lab, "fill:var(--red);font-size:12px", "end");
+    }
+  }
+
+  function roiMethodBullet() {
+    const ch = k => STATS[k][1].mean / STATS[k][0].mean - 1;
+    $("roi-method-bullet").innerHTML = `Same man, same radiologist: outline drawn on ADC <b>${pct(ch("expert"))}</b>, drawn on T2w <b>${pct(ch("t2"))}</b>. The ROI method alone changes the answer.`;
+  }
+  function drawCohort() {
+    const svg = $("cohort"); svg.innerHTML = "";
+    const m = { l: 20, r: 20, t: 40, b: 40 }, W = 640, H = 170, LIM = 0.6;
+    const X = v => m.l + (v + LIM) / (2 * LIM) * (W - m.l - m.r);
+    // the band where no real change can be claimed (the repeatability study's 95 % limit)
+    el("rect", { x: X(-0.42), y: m.t - 8, width: X(0.42) - X(-0.42), height: H - m.b - m.t + 8 }, svg, "fill:var(--red);opacity:.08");
+    for (let v = -0.6; v <= 0.6 + 1e-9; v += 0.2) {
+      el("line", { x1: X(v), x2: X(v), y1: m.t - 8, y2: H - m.b }, svg, "stroke:var(--line)");
+      text(svg, X(v), H - m.b + 16, (v > 0 ? "+" : v < 0 ? "−" : "") + Math.round(Math.abs(v) * 100) + " %");
+    }
+    text(svg, (m.l + W - m.r) / 2, H - 4, "change in mean tumour ADC between the two scans (no treatment)");
+    for (const v of [-0.42, 0.42]) el("line", { x1: X(v), x2: X(v), y1: m.t - 8, y2: H - m.b }, svg, "stroke:var(--red);stroke-width:1.5;stroke-dasharray:5 3");
+    text(svg, X(0), 14, "inside the band (±42 %, the study's limit): no real change can be claimed", "fill:var(--red);font-size:12px");
+    const shown = CASE.cohort.filter(c => !c.excluded);
+    shown.forEach((c, i) => {
+      const me = c.id === CASE.patient, y = m.t + 12 + (i % 4) * 16;
+      el("circle", { cx: X(c.change), cy: y, r: me ? 7 : 5 }, svg, me ? "fill:var(--orange);stroke:var(--bg);stroke-width:2" : "fill:var(--scan1)");
+      if (me) text(svg, X(c.change) + 11, y + 4, "this man " + pct(c.change), "fill:var(--orange);font-weight:bold;font-size:12px", "start");
+      else if (Math.abs(c.change) > 0.3) text(svg, X(c.change) - 9, y + 4, `a tiny lesion (${c.cc.toFixed(2)} cm³): ${pct(c.change)}`, "font-size:12px", "end");
+    });
+    const ex = CASE.cohort.filter(c => c.excluded);
+    $("cohort-note").innerHTML = `One dot per man (${shown.length} men, no treatment).` +
+      (ex.length ? ` Not shown: ${ex.length} man, ${ex.map(c => c.excluded).join("; ")}.` : "") +
+      "";
+  }
+
+  drawImages(); drawStats();
+})();
+</script>
+
+</body>
+</html>

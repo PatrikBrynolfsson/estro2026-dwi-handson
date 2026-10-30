@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Contouring on DWI</title>
+</head>
+<body>
+
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: a contouring workstation. The image and its tools on the left, the step's tasks and numbers on the right,
+   four steps as tabs. Same palette as the other pages: teal = what is drawn on T2w, orange = what is drawn on ADC. */
+:root {
+  --bg: #ffffff;
+  --surface: #f4f6f9;
+  --line: #dde2ea;
+  --ink: #1a1a1a;
+  --muted: #5f6672;
+  --guide: #9aa0a6;
+  --teal: #2a93b0;
+  --red: #e5484d;
+  --orange: #e0821a;
+  --chip: #eef1f5;
+  --chip-on: #1a1a1a;
+  --chip-on-fg: #ffffff;
+  --font: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  --mono: Consolas, "SF Mono", Menlo, "Liberation Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14171c; --surface: #1c2027; --line: #2e3440; --ink: #e9ecf1; --muted: #a2aab7; --guide: #5f6773;
+    --teal: #4cb4d0; --red: #f2696d; --orange: #f09a3e; --chip: #232832; --chip-on: #e9ecf1; --chip-on-fg: #14171c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14171c; --surface: #1c2027; --line: #2e3440; --ink: #e9ecf1; --muted: #a2aab7; --guide: #5f6773;
+  --teal: #4cb4d0; --red: #f2696d; --orange: #f09a3e; --chip: #232832; --chip-on: #e9ecf1; --chip-on-fg: #14171c;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 32px;
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+header { display: flex; flex-direction: column; gap: 4px; }
+.eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.eyebrow a { color: inherit; }
+h1 { font-size: 28px; line-height: 1.15; margin: 0; text-wrap: balance; }
+h2 { font-size: 16px; margin: 0; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); max-width: 72ch; }
+
+nav { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid var(--line); }
+nav a { text-decoration: none; color: var(--muted); padding: 8px 12px; border-bottom: 3px solid transparent; font-weight: bold; margin-bottom: -1px; }
+nav a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--teal); }
+nav a:hover { color: var(--ink); }
+.step-no { font-family: var(--mono); color: var(--teal); margin-right: 6px; }
+
+.bench { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 880px) { .bench { grid-template-columns: minmax(0, 1fr); } }
+.figure, .panel { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.viewer-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: stretch; max-width: 700px; }
+.viewer { position: relative; background: #000000; border-radius: 10px; overflow: hidden; width: 100%; }
+.vslider { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+.vslider input { writing-mode: vertical-lr; direction: rtl; flex: 1; min-height: 120px; width: 26px; margin: 0; accent-color: var(--teal); }
+.vslider .mono { font-size: 13px; color: var(--ink); white-space: nowrap; font-family: var(--mono); }
+.viewer canvas { display: block; width: 100%; height: auto; touch-action: none; }
+.viewer.draw canvas { cursor: crosshair; }
+.viewer .tag { position: absolute; left: 10px; top: 8px; color: #ffffff; font-size: 13px; font-weight: bold; text-shadow: 0 1px 2px #000000; pointer-events: none; }
+.viewer .side { position: absolute; top: 50%; color: #c8ccd2; font-size: 12px; font-weight: bold; pointer-events: none; }
+.viewer .side-r { left: 8px; } .viewer .side-l { right: 8px; }
+.viewer .scale { position: absolute; right: 12px; bottom: 10px; color: #ffffff; font-size: 12px; text-align: center; pointer-events: none; }
+.viewer .scale i { display: block; width: 100%; height: 3px; background: #ffffff; margin-bottom: 3px; }
+
+.ctrl { display: flex; flex-direction: column; gap: 6px; }
+.ctrl-label { font-size: 13px; font-weight: bold; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+button {
+  font: inherit; font-size: 14px; color: var(--ink); background: var(--chip); border: 1px solid var(--line);
+  border-radius: 999px; padding: 5px 12px; cursor: pointer;
+}
+button:hover { border-color: var(--guide); }
+button[aria-pressed="true"] { background: var(--chip-on); color: var(--chip-on-fg); border-color: var(--chip-on); }
+button.primary { background: var(--teal); color: #ffffff; border-color: var(--teal); font-weight: bold; border-radius: 8px; padding: 7px 14px; }
+button.quiet { border-radius: 8px; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button:focus-visible, input:focus-visible, nav a:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: flex-start; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; max-width: 700px; }
+.tb-tools { flex: 1 1 260px; min-width: 0; }
+.sizebox { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); }
+.sizebox button { padding: 3px 10px; font-size: 13px; }
+.sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 4px; }
+
+.tasks { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.tasks ol { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; counter-reset: task; }
+.tasks li { display: grid; grid-template-columns: 22px 26px minmax(0, 1fr); gap: 4px; align-items: start; font-size: 14.5px; }
+.tasks li::before { counter-increment: task; content: counter(task) "."; font-family: var(--mono); color: var(--teal); font-weight: bold; padding-top: 1px; grid-column: 2; grid-row: 1; }
+.tasks li input { grid-column: 1; grid-row: 1; width: 17px; height: 17px; margin: 2px 0 0; accent-color: var(--teal); cursor: pointer; }
+.tasks li label { grid-column: 3; grid-row: 1; cursor: pointer; }
+.tasks li.extra label::before { content: "Bonus question · "; color: var(--teal); font-weight: bold; }
+.tasks li input:checked ~ label { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--guide); }
+
+.table-box { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-size: 13px; color: var(--muted); font-weight: bold; }
+td.num, th.num { text-align: right; }
+td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.key { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 6px; }
+.key.dash { background: none !important; border-top: 3px dashed; height: 0; }
+.message { background: var(--surface); border-radius: 10px; padding: 12px 14px; font-size: 14.5px; }
+.message ul { margin: 6px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 3px; }
+.message.big { border-left: 4px solid var(--teal); font-size: 16px; }
+.note { font-size: 12.5px; color: var(--muted); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
+.toggle input { width: 16px; height: 16px; accent-color: var(--teal); }
+footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+@media (prefers-reduced-motion: no-preference) { button { transition: background .12s, color .12s, border-color .12s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow"><a href="index.html">ESTRO Advanced Imaging 2026 · Hands-on</a> · Block C</div>
+    <h1>Contouring on DWI</h1>
+    <p class="lede">The same man as in Block B, first scan. The tumour is easier to see on the ADC map than on T2w. Can you
+      contour the tumour, or a boost volume, on it? Scroll through the whole prostate with the slider (slices 4 mm apart);
+      the tumour shows on a few of them.</p>
+  </header>
+
+  <nav aria-label="Steps">
+    <a href="#t2w" data-tab="t2w"><span class="step-no">1</span>Draw on T2w</a>
+    <a href="#adc" data-tab="adc"><span class="step-no">2</span>Draw on DWI</a>
+    <a href="#compare" data-tab="compare"><span class="step-no">3</span>Compare</a>
+    <a href="#expert" data-tab="expert"><span class="step-no">4</span>The radiologist</a>
+  </nav>
+
+  <section class="bench">
+    <div class="figure">
+      <div class="ctrl" id="image-ctrl" hidden>
+        <span class="ctrl-label">Image</span>
+        <div class="chips">
+          <span class="chips" id="img-chips"></span>
+          <span class="sep" id="flick-sep"></span>
+          <button type="button" id="flick" aria-pressed="false">Flick T2w ↔ DWI</button>
+        </div>
+      </div>
+      <div class="viewer-row">
+        <div class="viewer" id="viewer">
+          <canvas id="cv" aria-label="Image for contouring"></canvas>
+          <span class="tag" id="tag"></span><span class="side side-r">R</span><span class="side side-l">L</span>
+          <span class="scale" id="scale"><i></i>10 mm</span>
+        </div>
+        <div class="vslider">
+          <span class="ctrl-label">Slice</span>
+          <span>head</span>
+          <input type="range" id="slice" min="0" max="1" step="1" value="0" aria-label="Slice (top = towards the head)" aria-orientation="vertical">
+          <span>feet</span>
+          <span class="mono" id="slice-val"></span>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="ctrl tb-tools">
+          <span class="ctrl-label">Tools</span>
+          <div class="chips"><span class="chips" id="tool-chips"></span>
+            <span class="sizebox" id="size-box" hidden><span class="note">Eraser size</span><span class="chips" id="size-chips"></span></span></div>
+          <div class="note" id="tool-note"></div>
+        </div>
+        <div class="ctrl" id="edit-row">
+          <span class="ctrl-label">Edit</span>
+          <div class="chips"><button type="button" class="quiet" id="undo">Undo</button><button type="button" class="quiet" id="clear">Clear this slice</button></div>
+        </div>
+      </div>
+      <div class="ctrl">
+        <span class="ctrl-label">Display</span>
+        <label class="toggle" for="interp"><input type="checkbox" id="interp" checked> Interpolate (cubic B-spline)</label>
+      </div>
+    </div>
+
+    <div class="panel">
+      <!-- step 1 -->
+      <div data-step="t2w" class="panel">
+        <div class="tasks"><h2>Tasks</h2><ol>
+          <li><input type="checkbox" id="c1-1"><label for="c1-1">Find the tumour on T2w: a dark area at the back right of the prostate, next to the rectum.</label></li>
+          <li><input type="checkbox" id="c1-2"><label for="c1-2">Draw around it on <b>every slice where you see it</b> (move the slider). "Draw around" fills what you circle; circle again to add more, and use the eraser to trim the edge.</label></li>
+          <li><input type="checkbox" id="c1-3"><label for="c1-3">Write the volume on the worksheet.</label></li>
+        </ol></div>
+        <div class="message" id="vol-t2w"></div>
+        <div class="ctrl"><span class="ctrl-label">Cannot draw? Use a ready outline</span>
+          <div class="chips"><button type="button" data-ready="t2w" data-bit="4">Tight</button><button type="button" data-ready="t2w" data-bit="0">Expert</button><button type="button" data-ready="t2w" data-bit="5">Generous</button></div></div>
+        <div class="row"><button type="button" class="primary" data-go="adc">Next: draw on DWI →</button></div>
+      </div>
+      <!-- step 2 -->
+      <div data-step="adc" class="panel" hidden>
+        <div class="tasks"><h2>Tasks</h2><ol>
+          <li><input type="checkbox" id="c2-1"><label for="c2-1">Predict first: will your outline on DWI be bigger, the same or smaller than on T2w?</label></li>
+          <li><input type="checkbox" id="c2-2"><label for="c2-2">Draw around the tumour on the DWI, on every slice where you see it. Switch between the ADC map (tumour dark) and b 1400 (tumour bright), as radiologists read them together. Your T2w outline is hidden.</label></li>
+          <li><input type="checkbox" id="c2-3"><label for="c2-3">Write the volume on the worksheet.</label></li>
+        </ol></div>
+        <div class="ctrl"><span class="ctrl-label">Your prediction</span>
+          <div class="chips" id="predict-chips"></div></div>
+        <div class="message" id="vol-adc"></div>
+        <div class="ctrl"><span class="ctrl-label">Cannot draw? Use a ready outline</span>
+          <div class="chips"><button type="button" data-ready="adc" data-bit="6">Tight</button><button type="button" data-ready="adc" data-bit="1">Expert</button><button type="button" data-ready="adc" data-bit="7">Generous</button></div></div>
+        <div class="row"><button type="button" class="primary" data-go="compare">Next: compare →</button></div>
+      </div>
+      <!-- step 3 -->
+      <div data-step="compare" class="panel" hidden>
+        <div class="tasks"><h2>Tasks</h2><ol>
+          <li><input type="checkbox" id="c3-1"><label for="c3-1">Compare the two volumes. Was your prediction right?</label></li>
+          <li><input type="checkbox" id="c3-2"><label for="c3-2">How well do your two outlines overlap? (Dice: 1 = identical, 0 = no overlap.)</label></li>
+          <li><input type="checkbox" id="c3-3"><label for="c3-3">Press <b>Flick T2w ↔ DWI</b> and watch the back edge of the prostate, next to the air-filled balloon in the rectum. Does it move?</label></li>
+          <li><input type="checkbox" id="c3-4"><label for="c3-4">Measure how far it moves with the <b>ruler</b> (drag on the image). Write it down.</label></li>
+          <li class="extra"><input type="checkbox" id="c3-5"><label for="c3-5">Tick "Show the prostate outline from T2w" and look at the DWI. Where does the DWI prostate end?</label></li>
+        </ol></div>
+        <div class="table-box"><table><tbody id="compare-table"></tbody></table></div>
+        <label class="toggle" for="show-prostate"><input type="checkbox" id="show-prostate"> Show the prostate outline from T2w</label>
+        <div class="row"><button type="button" class="primary" data-go="expert">Next: the radiologist →</button></div>
+      </div>
+      <!-- step 4 -->
+      <div data-step="expert" class="panel" hidden>
+        <div class="table-box"><table>
+          <thead><tr><th></th><th class="num">Yours</th><th class="num">Radiologist</th></tr></thead>
+          <tbody id="expert-table"></tbody></table></div>
+        <div class="note"><span class="key dash" style="border-color:#4cb4d0"></span>radiologist on T2w
+          &nbsp; <span class="key dash" style="border-color:#f09a3e"></span>radiologist on ADC
+          &nbsp; solid: yours</div>
+        <div class="message"><b>The radiologist did the same.</b>
+          <ul>
+            <li>They found the tumour with T2w, ADC and DCE side by side, then drew it on each series separately, the DWI outline on the ADC map (Fedorov et al., Sci Data 2018).</li>
+            <li>Their ADC outline sits about 5.5 mm further back than their T2w outline. ADC is calculated from the b 0 and b 1400 images, so b 1400 is shifted the same way.</li>
+            <li>The DWI is distorted: the air-filled balloon in the rectum bends the magnetic field, and DWI (EPI) turns that into a shift along the phase-encoding direction (front–back here).</li>
+            <li>The DWI was also taken about 10 minutes after the T2w. The patient can move in between.</li>
+            <li>In the study, tumour volumes drawn on ADC repeated worse than on T2w: 112 % vs 71 % (Fedorov et al., 2017).</li>
+          </ul></div>
+        <div class="tasks"><h2>Discuss</h2><ol>
+          <li><input type="checkbox" id="c4-1"><label for="c4-1">Would you use the ADC outline as the GTV, as a boost volume (as in FLAME), or only as a guide when you contour on T2w?</label></li>
+          <li><input type="checkbox" id="c4-2"><label for="c4-2">What margin would cover the shift you measured?</label></li>
+          <li><input type="checkbox" id="c4-3"><label for="c4-3">Would distortion correction or registration remove the shift? What would you check?</label></li>
+        </ol></div>
+        <div class="message big"><b>DWI shows where the tumour is. T2w (or CT) shows where it is in space.</b> Contour on the
+          geometrically correct image and use DWI as a guide, unless you have measured the shift and it is small.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Data: QIN-PROSTATE-Repeatability, patient PCAMPMRI-00009, first scan (Fedorov et al., Sci Data 2018; TCIA,
+      doi:10.7937/K9/TCIA.2018.MR1CKGND; CC BY 4.0). 3 T, endorectal coil, DWI b 0 and 1400 s/mm², scanner ADC map.
+      All images shown at the ADC slice positions on a 0.35 mm grid, resampled by nearest neighbour or cubic B-spline
+      (your choice); the radiologist drew separately on T2w and on ADC.</span>
+    <span>Volume repeatability: Fedorov et al., Invest Radiol 2017;52:538–46. FLAME: Kerkmeijer et al., J Clin Oncol 2021;39:787–96.</span>
+  </footer>
+</div>
+
+<script src="contour_case.js"></script>
+<script>
+(() => {
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const CASE = window.CONTOUR_CASE;
+  if (!CASE) { document.querySelector(".bench").innerHTML = `<div class="message">The case data (contour_case.js) did not load. Keep it in the same folder as this page.</div>`; return; }
+
+  // ---------- task ticks (this browser only) ----------
+  document.querySelectorAll(".tasks input[type=checkbox]").forEach(cb => {
+    try { cb.checked = localStorage.getItem("task-" + cb.id) === "1"; } catch (e) { /* storage blocked */ }
+    cb.addEventListener("change", () => { try { localStorage.setItem("task-" + cb.id, cb.checked ? "1" : "0"); } catch (e) { /* ignore */ } });
+  });
+
+  // ---------- data ----------
+  const N = CASE.n, NS = CASE.slices, NN = N * N, PX = CASE.pixel_mm, SL = CASE.slice_mm;
+  // images arrive as grayscale PNG strips (slices stacked); decode to one byte per pixel
+  const decode = uri => new Promise((ok, fail) => {
+    const im = new Image();
+    im.onload = () => {
+      const c = document.createElement("canvas"); c.width = im.width; c.height = im.height;
+      const x = c.getContext("2d", { willReadFrequently: true }); x.drawImage(im, 0, 0);
+      const d = x.getImageData(0, 0, im.width, im.height).data, u = new Uint8Array(im.width * im.height);
+      for (let i = 0; i < u.length; i++) u[i] = d[4 * i];
+      ok(u);
+    };
+    im.onerror = fail; im.src = uri;
+  });
+  const KEYS = { t2w: "t2", adc: "adc", b0: "b0", b1400: "b1400" };
+  const jobs = [];
+  for (const [k, ck] of Object.entries(KEYS)) for (const m of ["nearest", "spline"]) jobs.push(decode(CASE.img[ck][m]).then(u => [k, m, u]));
+  jobs.push(decode(CASE.roi).then(u => ["roi", null, u]));
+  Promise.all(jobs).then(res => {
+  const IMG = { t2w: {}, adc: {}, b0: {}, b1400: {} };
+  let ROI = null;
+  for (const [k, m, u] of res) { if (k === "roi") ROI = u; else IMG[k][m] = u; }
+  const roiMask = bit => Array.from({ length: NS }, (_, k) => { const m = new Uint8Array(NN); for (let i = 0; i < NN; i++) m[i] = (ROI[k * NN + i] >> bit) & 1; return m; });
+  const EXPERT = { t2w: roiMask(0), adc: roiMask(1) };
+  const PROSTATE_T2 = roiMask(2);
+
+  // ---------- state ----------
+  const empty = () => Array.from({ length: NS }, () => new Uint8Array(NN));
+  const st = {
+    step: "t2w", slice: CASE.start, tool: "lasso", size: 2, img: "t2w", interp: "spline", flick: null, showProstate: false,
+    masks: { t2w: empty(), adc: empty() }, predict: null, ruler: null,
+    undo: { t2w: Array.from({ length: NS }, () => []), adc: Array.from({ length: NS }, () => []) },
+  };
+  const COL = { t2w: "#4cb4d0", adc: "#f09a3e" };
+  const IMG_LABEL = { t2w: "T2w", adc: "ADC map", b0: "DWI b 0", b1400: "DWI b 1400" };
+
+  // ---------- chips ----------
+  function chips(id, items, current, onPick) {
+    const box = $(id); box.innerHTML = "";
+    for (const it of items) {
+      const b = document.createElement("button");
+      b.type = "button"; b.textContent = it.label; b.dataset.key = it.key; b.setAttribute("aria-pressed", String(it.key === current));
+      b.addEventListener("click", () => { press(id, it.key); onPick(it); });
+      box.appendChild(b);
+    }
+  }
+  const press = (id, key) => $(id).querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.key === String(key))));
+  const sl = $("slice");
+  sl.max = String(NS - 1); sl.value = String(st.slice);
+  sl.addEventListener("input", () => { st.slice = +sl.value; st.ruler = null; draw(); });
+  $("interp").addEventListener("change", e => { st.interp = e.target.checked ? "spline" : "nearest"; draw(); });
+  chips("size-chips", [[1, "1 mm"], [2, "2 mm"], [3, "3 mm"]].map(([k, l]) => ({ key: k, label: l })), 2, it => { st.size = it.key; });
+  const imgChips = keys => chips("img-chips", keys.map(k => ({ key: k, label: IMG_LABEL[k] })), st.img, it => { stopFlick(); st.img = it.key; draw(); });
+  chips("predict-chips", [["bigger", "Bigger"], ["same", "About the same"], ["smaller", "Smaller"]].map(([k, l]) => ({ key: k, label: l })), null,
+    it => { st.predict = it.key; });
+  function setTools() {
+    const drawing = st.step === "t2w" || st.step === "adc";
+    const tools = drawing ? [["lasso", "Draw around"], ["erase", "Eraser"], ["ruler", "Ruler"]] : [["ruler", "Ruler"]];
+    if (!tools.some(t => t[0] === st.tool)) st.tool = tools[0][0];
+    chips("tool-chips", tools.map(([k, l]) => ({ key: k, label: l })), st.tool, it => { st.tool = it.key; toolNote(); });
+    if (!drawing) $("size-box").hidden = true;
+    $("edit-row").hidden = !drawing;
+    $("viewer").classList.toggle("draw", true);
+    toolNote();
+  }
+  function toolNote() {
+    $("size-box").hidden = st.tool !== "erase";
+    $("tool-note").textContent = {
+      lasso: "Draw around: hold the mouse button (or your finger) and circle the tumour. Release to fill.",
+      erase: "Eraser: paint over the outline to remove it.",
+      ruler: "Ruler: drag a line on the image to measure a distance.",
+    }[st.tool];
+  }
+
+  // ---------- steps (hash routing) ----------
+  const STEPS = ["t2w", "adc", "compare", "expert"];
+  function show(step) {
+    if (!STEPS.includes(step)) step = "t2w";
+    st.step = step; st.ruler = null; stopFlick();
+    document.querySelectorAll("[data-step]").forEach(el => { el.hidden = el.dataset.step !== step; });
+    document.querySelectorAll("nav a").forEach(a => a.setAttribute("aria-current", a.dataset.tab === step ? "page" : "false"));
+    if (step === "t2w") st.img = "t2w";
+    if (step === "adc") st.img = "adc";
+    if (step === "compare" || step === "expert") st.img = "t2w";
+    $("image-ctrl").hidden = false;
+    imgChips(step === "t2w" ? ["t2w"] : step === "adc" ? ["adc", "b1400"] : ["t2w", "adc", "b0", "b1400"]);
+    $("flick").hidden = $("flick-sep").hidden = step === "t2w" || step === "adc";
+    setTools(); draw(); numbers();
+  }
+  window.addEventListener("hashchange", () => show(location.hash.slice(1)));
+
+  // ---------- numbers ----------
+  const count = ms => ms.reduce((s, m) => s + m.reduce((a, v) => a + v, 0), 0);
+  const volume = ms => count(ms) * PX * PX * SL / 1000;
+  function dice(a, b) {
+    let inter = 0, sa = 0, sb = 0;
+    for (let k = 0; k < NS; k++) for (let i = 0; i < NN; i++) { inter += a[k][i] & b[k][i]; sa += a[k][i]; sb += b[k][i]; }
+    return sa + sb ? 2 * inter / (sa + sb) : NaN;
+  }
+  function centroid(ms) {
+    let n = 0, r = 0, c = 0, z = 0;
+    ms.forEach((m, k) => { for (let i = 0; i < NN; i++) if (m[i]) { n++; r += Math.floor(i / N); c += i % N; z += k; } });
+    return n ? [r / n * PX, c / n * PX, z / n * SL] : null;
+  }
+  function shift(a, b) {               // from a (T2w) to b (ADC)
+    const ca = centroid(a), cb = centroid(b);
+    if (!ca || !cb) return null;
+    const d = [cb[0] - ca[0], cb[1] - ca[1], cb[2] - ca[2]];
+    const back = (CASE.rows_point_posterior ? 1 : -1) * d[0];
+    return { total: Math.hypot(...d), back };
+  }
+  const fmtShift = s => s ? `${s.total.toFixed(1)} mm` + (Math.abs(s.back) > 1 ? `<br><span class="note">${Math.abs(s.back).toFixed(1)} mm ${s.back > 0 ? "further back" : "further forward"}</span>` : "") : "–";
+  const perSlice = ms => { const k = ms.map((m, i) => m.some(v => v) ? i + 1 : 0).filter(Boolean); return k.length ? `drawn on slice ${k.join(", ")}` : "nothing drawn yet"; };
+  function numbers() {
+    const vt = volume(st.masks.t2w), va = volume(st.masks.adc);
+    $("vol-t2w").innerHTML = `Your T2w outline: <b class="mono">${vt.toFixed(2)} cm³</b> <span class="note">(${perSlice(st.masks.t2w)})</span>`;
+    $("vol-adc").innerHTML = `Your DWI outline: <b class="mono">${va.toFixed(2)} cm³</b> <span class="note">(${perSlice(st.masks.adc)})</span>`;
+    const d = dice(st.masks.t2w, st.masks.adc), s = shift(st.masks.t2w, st.masks.adc);
+    const key = c => `<span class="key" style="background:${c}"></span>`;
+    $("compare-table").innerHTML =
+      `<tr><td>${key(COL.t2w)}Volume on T2w</td><td class="num">${vt.toFixed(2)} cm³</td></tr>` +
+      `<tr><td>${key(COL.adc)}Volume on DWI</td><td class="num">${va.toFixed(2)} cm³</td></tr>` +
+      `<tr><td>Overlap (Dice)</td><td class="num">${isNaN(d) ? "–" : d.toFixed(2)}</td></tr>` +
+      `<tr><td>Centre of DWI outline vs T2w</td><td class="num">${fmtShift(s)}</td></tr>`;
+    const et = EXPERT.t2w, ea = EXPERT.adc;
+    const row = (name, mine, theirs) => `<tr><td>${name}</td><td class="num">${mine}</td><td class="num">${theirs}</td></tr>`;
+    $("expert-table").innerHTML =
+      row("Volume on T2w", `${vt.toFixed(2)} cm³`, `${volume(et).toFixed(2)} cm³`) +
+      row("Volume on DWI", `${va.toFixed(2)} cm³`, `${volume(ea).toFixed(2)} cm³`) +
+      row("Overlap (Dice)", isNaN(d) ? "–" : d.toFixed(2), dice(et, ea).toFixed(2)) +
+      row("DWI centre vs T2w", fmtShift(s), fmtShift(shift(et, ea)));
+  }
+
+  // ---------- drawing the view ----------
+  const UP = 3, cv = $("cv"), ctx = cv.getContext("2d");
+  cv.width = N * UP; cv.height = N * UP;
+  const off = document.createElement("canvas"); off.width = N; off.height = N;
+  const octx = off.getContext("2d");
+  let lasso = null;
+  function gray(k, i) {
+    return IMG[st.img][st.interp][k * NN + i];
+  }
+  function outline(m, color, dash, fill) {
+    if (fill) {
+      const ov = document.createElement("canvas"); ov.width = N; ov.height = N;
+      const oc = ov.getContext("2d"), od = oc.createImageData(N, N);
+      const rgb = [1, 3, 5].map(j => parseInt(color.substr(j, 2), 16));
+      for (let i = 0; i < NN; i++) if (m[i]) { od.data[4 * i] = rgb[0]; od.data[4 * i + 1] = rgb[1]; od.data[4 * i + 2] = rgb[2]; od.data[4 * i + 3] = 70; }
+      oc.putImageData(od, 0, 0); ctx.imageSmoothingEnabled = false; ctx.drawImage(ov, 0, 0, cv.width, cv.height);
+    }
+    // trace the pixel edges into closed loops (one path per loop), so a dash pattern runs along the whole outline
+    const W = N + 1, out = new Map(), on = (r, c) => r >= 0 && c >= 0 && r < N && c < N && m[r * N + c];
+    const add = (x0, y0, x1, y1) => { const k = y0 * W + x0; if (!out.has(k)) out.set(k, []); out.get(k).push(y1 * W + x1); };
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+      if (!m[r * N + c]) continue;
+      if (!on(r - 1, c)) add(c, r, c + 1, r);
+      if (!on(r, c + 1)) add(c + 1, r, c + 1, r + 1);
+      if (!on(r + 1, c)) add(c + 1, r + 1, c, r + 1);
+      if (!on(r, c - 1)) add(c, r + 1, c, r);
+    }
+    ctx.strokeStyle = color; ctx.lineWidth = 2.2; ctx.setLineDash(dash); ctx.beginPath();
+    for (const k0 of out.keys()) {
+      while (out.get(k0).length) {
+        let k = k0; ctx.moveTo((k % W) * UP, Math.floor(k / W) * UP);
+        do { const nx = out.get(k).pop(); k = nx; ctx.lineTo((k % W) * UP, Math.floor(k / W) * UP); } while (k !== k0 && out.get(k) && out.get(k).length);
+        ctx.closePath();
+      }
+    }
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+  function draw() {
+    const k = st.slice, img = octx.createImageData(N, N);
+    for (let i = 0; i < NN; i++) { const g = gray(k, i); img.data[4 * i] = img.data[4 * i + 1] = img.data[4 * i + 2] = g; img.data[4 * i + 3] = 255; }
+    octx.putImageData(img, 0, 0);
+    ctx.imageSmoothingEnabled = st.interp !== "nearest"; ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(off, 0, 0, cv.width, cv.height);
+    if (st.step === "t2w") outline(st.masks.t2w[k], COL.t2w, [], true);
+    if (st.step === "adc") outline(st.masks.adc[k], COL.adc, [], true);
+    if (st.step === "compare") { outline(st.masks.t2w[k], COL.t2w, [], false); outline(st.masks.adc[k], COL.adc, [], false); }
+    if (st.step === "expert") {
+      outline(st.masks.t2w[k], COL.t2w, [], false); outline(st.masks.adc[k], COL.adc, [], false);
+      outline(EXPERT.t2w[k], COL.t2w, [7, 5], false); outline(EXPERT.adc[k], COL.adc, [7, 5], false);
+    }
+    if (st.step === "compare" && st.showProstate) outline(PROSTATE_T2[k], "#ffffff", [3, 4], false);
+    if (lasso && lasso.length > 1) {
+      ctx.strokeStyle = st.step === "adc" ? COL.adc : COL.t2w; ctx.lineWidth = 2; ctx.beginPath();
+      lasso.forEach(([x, y], i) => i ? ctx.lineTo(x * UP, y * UP) : ctx.moveTo(x * UP, y * UP)); ctx.stroke();
+    }
+    if (st.ruler) {
+      const [[x0, y0], [x1, y1]] = st.ruler, mm = Math.hypot(x1 - x0, y1 - y0) * PX;
+      ctx.strokeStyle = "#ffe14d"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(x0 * UP, y0 * UP); ctx.lineTo(x1 * UP, y1 * UP); ctx.stroke();
+      for (const [x, y] of st.ruler) { ctx.beginPath(); ctx.arc(x * UP, y * UP, 4, 0, 2 * Math.PI); ctx.fillStyle = "#ffe14d"; ctx.fill(); }
+      ctx.font = "bold 16px Trebuchet MS, sans-serif"; ctx.fillStyle = "#ffe14d"; ctx.strokeStyle = "#000000"; ctx.lineWidth = 4;
+      const tx = (x0 + x1) / 2 * UP + 10, ty = (y0 + y1) / 2 * UP - 10;
+      ctx.strokeText(mm.toFixed(1) + " mm", tx, ty); ctx.fillText(mm.toFixed(1) + " mm", tx, ty);
+    }
+    $("tag").textContent = `${IMG_LABEL[st.img]} · slice ${k + 1} of ${NS}`;
+    $("slice-val").textContent = `${k + 1} / ${NS}`;
+    $("scale").style.width = (10 / PX / N * 100) + "%";
+  }
+
+  // ---------- pointer input ----------
+  const target = () => (st.step === "t2w" ? "t2w" : st.step === "adc" ? "adc" : null);
+  function gridXY(ev) { const r = cv.getBoundingClientRect(); return [(ev.clientX - r.left) / r.width * N, (ev.clientY - r.top) / r.height * N]; }
+  function pushUndo() { const t = target(); if (!t) return; const u = st.undo[t][st.slice]; u.push(st.masks[t][st.slice].slice()); if (u.length > 30) u.shift(); }
+  function stamp(x, y, val) {
+    const m = st.masks[target()][st.slice], rad = st.size / PX;
+    for (let r = Math.max(0, Math.floor(y - rad)); r <= Math.min(N - 1, Math.ceil(y + rad)); r++)
+      for (let c = Math.max(0, Math.floor(x - rad)); c <= Math.min(N - 1, Math.ceil(x + rad)); c++)
+        if ((c + 0.5 - x) ** 2 + (r + 0.5 - y) ** 2 <= rad * rad) m[r * N + c] = val;
+  }
+  function fillPolygon(pts) {
+    const m = st.masks[target()][st.slice];
+    const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+    for (let r = Math.max(0, Math.floor(Math.min(...ys))); r <= Math.min(N - 1, Math.ceil(Math.max(...ys))); r++)
+      for (let c = Math.max(0, Math.floor(Math.min(...xs))); c <= Math.min(N - 1, Math.ceil(Math.max(...xs))); c++) {
+        const x = c + 0.5, y = r + 0.5; let inside = false;
+        for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+          const [xi, yi] = pts[i], [xj, yj] = pts[j];
+          if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+        }
+        if (inside) m[r * N + c] = 1;
+      }
+  }
+  let dragging = false;
+  cv.addEventListener("pointerdown", ev => {
+    ev.preventDefault(); cv.setPointerCapture(ev.pointerId); dragging = true;
+    const p = gridXY(ev);
+    if (st.tool === "ruler") { st.ruler = [p, p]; }
+    else if (target()) {
+      pushUndo();
+      if (st.tool === "lasso") lasso = [p];
+      else if (st.tool === "erase") stamp(p[0], p[1], 0);
+    }
+    draw();
+  });
+  cv.addEventListener("pointermove", ev => {
+    if (!dragging) return;
+    const p = gridXY(ev);
+    if (st.tool === "ruler" && st.ruler) st.ruler[1] = p;
+    else if (lasso) lasso.push(p);
+    else if (target() && st.tool === "erase") stamp(p[0], p[1], 0);
+    draw();
+  });
+  function endDrag() {
+    if (!dragging) return;
+    dragging = false;
+    if (lasso) { if (lasso.length > 2) fillPolygon(lasso); lasso = null; }
+    draw(); numbers();
+  }
+  cv.addEventListener("pointerup", endDrag);
+  cv.addEventListener("pointercancel", endDrag);
+
+  $("undo").addEventListener("click", () => { const t = target(); if (!t) return; const u = st.undo[t][st.slice]; if (u.length) { st.masks[t][st.slice] = u.pop(); draw(); numbers(); } });
+  $("clear").addEventListener("click", () => { const t = target(); if (!t) return; pushUndo(); st.masks[t][st.slice] = new Uint8Array(NN); draw(); numbers(); });
+  document.querySelectorAll("[data-ready]").forEach(b => b.addEventListener("click", () => {
+    const t = b.dataset.ready, m = roiMask(+b.dataset.bit);
+    for (let k = 0; k < NS; k++) { st.undo[t][k].push(st.masks[t][k].slice()); st.masks[t][k] = m[k]; }
+    draw(); numbers();
+  }));
+  document.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => { location.hash = b.dataset.go; }));
+  $("show-prostate").addEventListener("change", e => { st.showProstate = e.target.checked; draw(); });
+
+  // ---------- flick ----------
+  function stopFlick() { if (st.flick) { clearInterval(st.flick); st.flick = null; } $("flick").setAttribute("aria-pressed", "false"); }
+  $("flick").addEventListener("click", () => {
+    if (st.flick) { stopFlick(); return; }
+    $("flick").setAttribute("aria-pressed", "true");
+    st.img = "t2w"; draw();
+    st.flick = setInterval(() => { st.img = st.img === "t2w" ? "b0" : "t2w"; press("img-chips", st.img); draw(); }, 800);
+  });
+
+  show(location.hash.slice(1));
+  }).catch(() => { document.querySelector(".bench").innerHTML = `<div class="message">The images could not be decoded. Try another browser.</div>`; });
+})();
+</script>
+
+</body>
+</html>
