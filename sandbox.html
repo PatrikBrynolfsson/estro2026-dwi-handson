@@ -50,6 +50,8 @@ body {
 }
 .wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
 header { display: flex; flex-direction: column; gap: 4px; }
+.back { align-self: flex-start; text-decoration: none; color: var(--ink); background: var(--chip); border: 1px solid var(--line); border-radius: 8px; padding: 4px 12px; font-size: 14px; font-weight: bold; }
+.back:hover { border-color: var(--guide); }
 .eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 h1 { font-size: 28px; line-height: 1.15; margin: 0; text-wrap: balance; }
 h2 { font-size: 18px; margin: 0; text-wrap: balance; }
@@ -104,6 +106,7 @@ button:hover { border-color: var(--guide); }
 button[aria-pressed="true"] { background: var(--chip-on); color: var(--chip-on-fg); border-color: var(--chip-on); }
 button.primary { background: var(--teal); color: #ffffff; border-color: var(--teal); font-weight: bold; border-radius: 8px; padding: 7px 14px; }
 button.quiet { border-radius: 8px; }
+button:disabled { opacity: .45; cursor: not-allowed; }
 .roi-dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; box-shadow: 0 0 0 1px var(--guide); margin-right: 6px; vertical-align: 0; }
 .setting { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 18px; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--orange); border-radius: 10px; padding: 10px 14px; }
 .col-head { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
@@ -140,6 +143,34 @@ td.hidden-val { color: var(--guide); text-align: right; }
 .tasks li label { grid-column: 3; grid-row: 1; cursor: pointer; }
 .tasks li.extra label::before { content: "Bonus question · "; color: var(--teal); font-weight: bold; }
 .tasks li input:checked ~ label { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--guide); }
+/* one task at a time */
+.tasks.stepper h2 .note { display: none; }
+.tasks.stepper ol { gap: 0; }
+.tasks.stepper li { font-size: 17px; line-height: 1.45; grid-template-columns: 30px minmax(0, 1fr); min-height: 3.2em; }
+.tasks.stepper li::before { content: attr(data-n) "."; grid-column: 1; font-size: 17px; }
+.tasks.stepper li input { display: none; }
+.tasks.stepper li.intro::before { content: none; }
+.tasks.stepper li.intro label { grid-column: 1 / -1; }
+.tasks.stepper li.intro ul { margin: 4px 0 0; padding-left: 22px; display: flex; flex-direction: column; gap: 2px; }
+.tasks.stepper li.intro ul li { display: list-item; font-size: 16px; min-height: 0; }
+.tasks.stepper li.intro ul li::before { content: none; }
+.spot { outline: 3px solid var(--orange); outline-offset: 5px; border-radius: 8px; position: relative; z-index: 41; background: var(--bg); }
+/* keep the image and its slider on screen under the sticky task card on laptop-height screens */
+@media (min-height: 640px) and (min-width: 700px) { #viewer1 { max-width: max(320px, calc(100vh - 280px)); } }
+.dim { position: fixed; inset: 0; background: rgba(0, 0, 0, .55); z-index: 40; pointer-events: none; }
+/* the task card stays in view while you scroll (on screens tall enough) */
+@media (min-height: 640px) and (min-width: 700px) {
+  .tasks.stepper { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 42; box-shadow: 0 6px 18px rgba(0, 0, 0, .18); }
+}
+@media (prefers-reduced-motion: no-preference) { .spot { animation: spot 1.6s ease-in-out 3; } }
+@keyframes spot { 50% { outline-color: transparent; } }
+.tasks.stepper li label { grid-column: 2; cursor: default; }
+.tasks.stepper li input:checked ~ label { color: inherit; text-decoration: none; }
+.step-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 10px; }
+.dots { display: flex; gap: 6px; align-items: center; }
+.dots button { width: 12px; height: 12px; padding: 0; border-radius: 50%; background: var(--line); border: 0; }
+.dots button.seen { background: var(--guide); }
+.dots button[aria-current="true"] { background: var(--teal); transform: scale(1.25); }
 .task { border-left: 3px solid var(--teal); padding: 2px 0 2px 12px; font-size: 14px; }
 .task b { display: block; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--teal); }
 .message { background: var(--surface); border-radius: 10px; padding: 12px 14px; font-size: 14.5px; }
@@ -153,7 +184,8 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
 
 <div class="wrap">
   <header>
-    <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · Diffusion-weighted MRI</div>
+    <a class="back" href="index.html">← All blocks</a>
+    <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · Block A</div>
     <h1>ADC &amp; IVIM Sandbox</h1>
     <p class="lede">A real brain scan with 21 b-values. Choose which b-values go into the ADC and see what number you get.
       Work in pairs and write your predictions on the worksheet before you click.</p>
@@ -170,6 +202,20 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
     <div class="tasks" data-step="1">
       <h2>Tasks <span class="note">tick them off as you go · write your answers on the worksheet</span></h2>
       <ol>
+        <li class="intro" data-spot="viewer1,b-slider-box"><label><b>The images</b>
+          <ul><li>The same slice, scanned 21 times</li>
+            <li>Each image has its own <b>b-value</b>: how strongly water motion darkens it</li>
+            <li>Move the <b>slider</b>: where water moves freely, the signal fades fastest</li></ul></label></li>
+        <li class="intro" data-spot="roi-box,plot1"><label><b>The graph</b>
+          <ul><li>One dot = one image: the signal in the chosen region</li>
+            <li>Left → right: b 0 → b 1000 · higher = brighter</li>
+            <li>The <b>ringed dot</b> is the image on the left</li>
+            <li>Choose the region above the graph, or click the image</li></ul></label></li>
+        <li class="intro" data-spot="scheme-box,plot1"><label><b>The ADC</b>
+          <ul><li>Calculated from just two images: the <b>orange dots</b></li>
+            <li>ADC = how steep the orange line is: steeper = higher ADC</li>
+            <li>Choose the two b-values in the bar above the image</li>
+            <li>Dashed line: b 200 &amp; 800, for comparison</li></ul></label></li>
         <li><input type="checkbox" id="t1-1"><label for="t1-1">Move the b-value slider from 0 to 1000. Which parts of the brain lose the most signal between b = 0 and b = 100?</label></li>
         <li><input type="checkbox" id="t1-2"><label for="t1-2">Pick <b>Brain tissue</b>. Read its ADC with b 0 &amp; 800, then with b 200 &amp; 800.</label></li>
         <li><input type="checkbox" id="t1-3"><label for="t1-3">Predict first: which region has the biggest difference between the two ADCs: brain tissue, CSF, or vessels + CSF in the Sylvian fissure? Then check.</label></li>
@@ -177,7 +223,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
         <li class="extra"><input type="checkbox" id="t1-5"><label for="t1-5">CSF is almost pure water: its ADC is close to free water at body temperature (about 3.0 × 10⁻³ mm²/s). Choose <b>0 &amp; 800</b> and the <b>ADC change</b> image: why do the vessels in the Sylvian fissure light up?</label></li>
       </ol>
     </div>
-    <div class="setting">
+    <div class="setting" id="scheme-box">
       <div class="ctrl">
         <span class="ctrl-label">ADC calculated from b-values (s/mm²)</span>
         <div class="chips" id="scheme-chips"></div>
@@ -188,7 +234,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
       <div class="figure">
         <h3 class="col-head">Image</h3>
         <div class="chips" id="view-chips"></div>
-        <div class="viewer">
+        <div class="viewer" id="viewer1">
           <canvas id="cv1" tabindex="0" aria-label="Brain slice. Click a point to see its signal curve."></canvas>
           <span class="tag" id="tag1"></span><span class="side side-r">R</span><span class="side side-l">L</span>
         </div>
@@ -201,7 +247,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
       </div>
       <div class="panel">
         <h3 class="col-head">Measurement</h3>
-        <div class="ctrl">
+        <div class="ctrl" id="roi-box">
           <span class="ctrl-label">Measure in <span class="note">(or click a point on the image: 3 × 3 voxels)</span></span>
           <div class="chips" id="roi-chips"></div>
         </div>
@@ -210,7 +256,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
           <span><i class="dot" style="background:var(--ink)"></i>measured signal (21 b-values)</span>
           <span><i class="dot" style="background:var(--orange)"></i><i class="swatch" style="border-color:var(--orange)"></i>your two b-values and the ADC line</span>
         </div>
-        <div class="readout" aria-live="polite">
+        <div class="readout" id="adc1-box" aria-live="polite">
           <span class="ctrl-label" id="ro1-label">ADC</span>
           <span class="big" id="adc1"></span>
           <span class="vs" id="vs1"></span>
@@ -375,9 +421,72 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
     if (!TABS.includes(tab)) tab = "images";
     for (const t of TABS) $("tab-" + t).hidden = t !== tab;
     document.querySelectorAll("nav a").forEach(a => a.setAttribute("aria-current", a.dataset.tab === tab ? "page" : "false"));
+    const d = document.querySelector(".dim"); if (d) d.hidden = true;
+    document.querySelectorAll(".spot").forEach(e => e.classList.remove("spot"));
   }
   window.addEventListener("hashchange", () => show(location.hash.slice(1)));
   show(location.hash.slice(1));
+
+  // ---------- spotlight: dim the page, raise the elements an intro card talks about, scroll them into view ----------
+  const dim = document.createElement("div"); dim.className = "dim"; dim.hidden = true; document.body.appendChild(dim);
+  dim.addEventListener("click", () => spotlight(null, []));
+  function spotlight(card, els, quiet = false) {
+    document.querySelectorAll(".spot").forEach(e => e.classList.remove("spot"));
+    dim.hidden = true;
+    if (!els.length || !card || card.offsetParent === null) return;
+    els.forEach(e => { void e.offsetWidth; e.classList.add("spot"); });
+    if (quiet) return;                     // on page load: outline only, no dimming or scrolling
+    dim.hidden = false;
+    // scroll so that the highlighted elements sit below the (sticky) task card; if they do not fit, keep their bottom in view
+    const rects = els.map(e => e.getBoundingClientRect());
+    const top = Math.min(...rects.map(r => r.top)), bottom = Math.max(...rects.map(r => r.bottom));
+    const sticky = getComputedStyle(card).position === "sticky", cardH = sticky ? card.getBoundingClientRect().height + 16 : 16;
+    const avail = window.innerHeight - cardH - 16, h = bottom - top;
+    const dy = h <= avail ? top - cardH - (avail - h) / 2 : bottom - window.innerHeight + 16;
+    if (Math.abs(dy) > 8) window.scrollBy({ top: dy, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  }
+
+  // ---------- tasks: one at a time, with Previous / Next ----------
+  const TAB_NAMES = { images: "Same brain, different ADC", treatment: "Treatment", noise: "Noise" };
+  TABS.forEach((tab, ti) => {
+    const box = document.querySelector(`#tab-${tab} .tasks`);
+    if (!box) return;
+    const items = [...box.querySelectorAll("ol > li")], n = items.length, key = "taskpos2-" + tab;
+    const intros = items.filter(li => li.classList.contains("intro")).length, nTasks = n - intros;
+    box.classList.add("stepper");
+    items.forEach((li, i) => { li.dataset.n = i + 1 - intros; });
+    const title = box.querySelector("h2");
+    const nav = document.createElement("div"); nav.className = "step-nav";
+    nav.innerHTML = `<button type="button" class="quiet" data-prev>← Previous</button><span class="dots"></span><button type="button" class="primary" data-next></button>`;
+    box.appendChild(nav);
+    const dots = nav.querySelector(".dots");
+    items.forEach((_, i) => { const d = document.createElement("button"); d.type = "button"; d.setAttribute("aria-label", "Task " + (i + 1)); d.addEventListener("click", () => go(i)); dots.appendChild(d); });
+    let pos = 0;
+    try { pos = Math.min(n - 1, Math.max(0, +(localStorage.getItem(key) || 0))); } catch (e) { /* storage blocked */ }
+    function go(i, quiet = false) {
+      pos = i;
+      items.forEach((li, j) => { li.hidden = j !== i; });
+      [...dots.children].forEach((d, j) => { d.setAttribute("aria-current", String(j === i)); if (j <= i) d.classList.add("seen"); });
+      const intro = items[i].classList.contains("intro");
+      title.innerHTML = intro ? `Start here · how to read this page (${i + 1} of ${intros})`
+        : `Task ${i + 1 - intros} of ${nTasks}` + (items[i].classList.contains("extra") ? ` <span class="note" style="display:inline">for fast pairs</span>` : "");
+      spotlight(box, (items[i].dataset.spot || "").split(",").filter(Boolean).map(id => document.getElementById(id)).filter(Boolean), quiet);
+      const prev = nav.querySelector("[data-prev]"), next = nav.querySelector("[data-next]");
+      prev.disabled = i === 0 && ti === 0;
+      next.textContent = intro && i === intros - 1 ? "Start the tasks →" : i < n - 1 ? "Next →" : ti < TABS.length - 1 ? `Next: ${TAB_NAMES[TABS[ti + 1]]} →` : "Done: back to all blocks";
+      try { localStorage.setItem(key, String(i)); } catch (e) { /* ignore */ }
+    }
+    nav.querySelector("[data-prev]").addEventListener("click", () => {
+      if (pos > 0) go(pos - 1);
+      else if (ti > 0) { location.hash = TABS[ti - 1]; }
+    });
+    nav.querySelector("[data-next]").addEventListener("click", () => {
+      if (pos < n - 1) go(pos + 1);
+      else if (ti < TABS.length - 1) { location.hash = TABS[ti + 1]; window.scrollTo({ top: 0 }); }
+      else location.href = "index.html";
+    });
+    go(pos, true);
+  });
 
   const slug = key => String(key).replace(/[^A-Za-z0-9]+/g, "-");
   function chips(container, items, current, onPick) {
@@ -594,6 +703,8 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
 
   // ---------- STEP 1 ----------
   // outline colours chosen to stand out on both the grey images and the blue–red change map
+  const ROI_LABEL = { "CSF (cistern)": "CSF" };          // short labels on the buttons; data keys unchanged
+  const label = r => ROI_LABEL[r] || r;
   const ROI_COLORS = { "Brain tissue": "#ffd23f", "CSF (cistern)": "#c58cff", "Vessels + CSF (Sylvian fissure)": "#3ee07a", "Your click": "#ffffff" };
   const st1 = { view: "b", bi: 0, region: "Brain tissue", click: null, blo: 0, log: [] };
   let v1 = null;
@@ -643,13 +754,18 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
     // the bias-free reference: ADC from b 200 & 800, drawn faintly
     adcLine(ax, 200, y[ib(200)], 800, y[ib(800)], "stroke:var(--teal);stroke-width:1.6;stroke-dasharray:6 5");
     BV.forEach((b, bi) => point(ax, b, y[bi], "fill:var(--ink)", 3.6));
+    // the image shown on the left: vertical line and a ring on its dot
+    const bs = BV[st1.bi], xs = ax.X(bs);
+    el("line", { x1: xs, x2: xs, y1: ax.Y(1.1), y2: ax.Y(ymin) }, ax.c, "stroke:var(--ink);stroke-width:1.2;stroke-dasharray:2 4;opacity:.7");
+    point(ax, bs, y[st1.bi], "fill:none;stroke:var(--ink);stroke-width:2", 9);
+    text(ax.top, xs + (bs > 700 ? -12 : 12), ax.Y(ymin) - 10, `b ${bs}: the image on the left`, "fill:var(--ink);font-weight:bold", bs > 700 ? "end" : "start");
     const blo = st1.blo, a = Math.log(y[ib(blo)] / y[ib(800)]) / (800 - blo), ref = Math.log(y[ib(200)] / y[ib(800)]) / 600;
     adcLine(ax, blo, y[ib(blo)], 800, y[ib(800)], "stroke:var(--orange);stroke-width:2.2");
     for (const b of [blo, 800]) {
       point(ax, b, y[ib(b)], "fill:var(--orange);stroke:var(--bg);stroke-width:2", 6);
       text(ax.top, ax.X(b) + (b === 0 ? 10 : 0), ax.Y(y[ib(b)]) - 12, "b " + b, "fill:var(--orange);font-weight:bold", b === 0 ? "start" : "middle");
     }
-    const name = st1.region === "Your click" ? "Your click (3 × 3 voxels)" : st1.region;
+    const name = st1.region === "Your click" ? "Your click (3 × 3 voxels)" : label(st1.region);
     $("ro1-label").textContent = `ADC · ${name}`;
     $("adc1").innerHTML = `${k(a)} <small>× 10⁻³ mm²/s</small>`;
     $("vs1").innerHTML = blo === 200
@@ -668,7 +784,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
   if (DATA) {
     v1 = new Viewer("cv1", "tag1", (r, c) => {
       st1.click = [r, c]; st1.region = "Your click";
-      setPressed("roi-chips", "Your click"); $("roi-chips-Your-click").hidden = false;
+      setPressed("roi-chips", "Your click"); $("roi-chips-Your-click").disabled = false;
       showRegionOnImage(); draw1();
     });
     chips("view-chips", [
@@ -676,12 +792,13 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
       { key: "diff", label: "ADC change vs b 200 & 800" }], "b",
       it => { st1.view = it.key; drawView1(); });
     const regions = ["Brain tissue", "CSF (cistern)", "Vessels + CSF (Sylvian fissure)", "Your click"];
-    chips("roi-chips", regions.map(r => ({ key: r, html: `<span class="roi-dot" style="background:${ROI_COLORS[r]}"></span>${r}` })),
+    chips("roi-chips", regions.map(r => ({ key: r, html: `<span class="roi-dot" style="background:${ROI_COLORS[r]}"></span>${label(r)}` })),
       st1.region, it => { st1.region = it.key; showRegionOnImage(); draw1(); });
-    $("roi-chips-Your-click").hidden = true;
+    $("roi-chips-Your-click").disabled = true;             // always shown (no layout jump); active after the first click
+    $("roi-chips-Your-click").title = "Click a point on the image first";
     chips("scheme-chips", [0, 100, 200].map(b => ({ key: String(b), label: `${b} & 800`, b })), "0",
       it => { st1.blo = it.b; draw1(); drawView1(); });
-    $("b-slider").addEventListener("input", e => { st1.bi = +e.target.value; $("b-slider-val").textContent = BV[st1.bi]; drawView1(); });
+    $("b-slider").addEventListener("input", e => { st1.bi = +e.target.value; $("b-slider-val").textContent = BV[st1.bi]; drawView1(); draw1(); });
     $("clear-log").addEventListener("click", () => { st1.log = []; renderLog(); });
     drawView1(); draw1();
   } else {

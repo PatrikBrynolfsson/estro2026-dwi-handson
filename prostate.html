@@ -50,6 +50,8 @@ body {
 }
 .wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
 header { display: flex; flex-direction: column; gap: 4px; }
+.back { align-self: flex-start; text-decoration: none; color: var(--ink); background: var(--chip); border: 1px solid var(--line); border-radius: 8px; padding: 4px 12px; font-size: 14px; font-weight: bold; }
+.back:hover { border-color: var(--guide); }
 .eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .eyebrow a { color: inherit; }
 h1 { font-size: 28px; line-height: 1.15; margin: 0; text-wrap: balance; }
@@ -119,7 +121,8 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
 
 <div class="wrap">
   <header>
-    <div class="eyebrow"><a href="index.html">ESTRO Advanced Imaging 2026 · Hands-on</a> · Block B</div>
+    <a class="back" href="index.html">← All blocks</a>
+    <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · Block B</div>
     <h1>Prostate ADC Case</h1>
     <p class="lede">A man with a tumour in the peripheral zone of the prostate. He was scanned twice, one week apart, on the
       same 3 T scanner with the same protocol. A radiologist outlined the tumour on the ADC map of each scan.</p>
