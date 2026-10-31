@@ -91,6 +91,8 @@ button.primary { background: var(--teal); color: #ffffff; border-color: var(--te
 button.quiet { border-radius: 8px; }
 button:disabled { opacity: .45; cursor: not-allowed; }
 button:focus-visible, input:focus-visible, nav a:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+/* the task card follows down its column (stepper.js makes it sticky): stretch the column to the image column's height */
+@media (min-width: 881px) { .bench { align-items: stretch; } .bench > .panel > [data-step] { flex: 1; } }
 .toolbar { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: flex-start; justify-content: space-between;
   background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; max-width: 700px; }
 .tb-tools { flex: 1 1 260px; min-width: 0; }
@@ -131,8 +133,8 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
     <a class="back" href="index.html">← All blocks</a>
     <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · Block C</div>
     <h1>Contouring on DWI</h1>
-    <p class="lede">The same man as in Block B, first scan. The tumour is easier to see on the ADC map than on T2w. Can you
-      contour the tumour, or a boost volume, on it? Scroll through the whole prostate with the slider (slices 4 mm apart);
+    <p class="lede">Another man from the same study as Block B. The tumour is easier to see on the ADC map than on T2w. Can you
+      contour the tumour, or a boost volume, on it? Scroll through the whole prostate with the slider (slices <span id="slice-mm"></span> mm apart);
       the tumour shows on a few of them.</p>
   </header>
 
@@ -153,7 +155,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
           <button type="button" id="flick" aria-pressed="false">Flick T2w ↔ DWI</button>
         </div>
       </div>
-      <div class="viewer-row">
+      <div class="viewer-row" id="scan-box">
         <div class="viewer" id="viewer">
           <canvas id="cv" aria-label="Image for contouring"></canvas>
           <span class="tag" id="tag"></span><span class="side side-r">R</span><span class="side side-l">L</span>
@@ -167,7 +169,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
           <span class="mono" id="slice-val"></span>
         </div>
       </div>
-      <div class="toolbar">
+      <div class="toolbar" id="tool-box">
         <div class="ctrl tb-tools">
           <span class="ctrl-label">Tools</span>
           <div class="chips"><span class="chips" id="tool-chips"></span>
@@ -179,7 +181,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
           <div class="chips"><button type="button" class="quiet" id="undo">Undo</button><button type="button" class="quiet" id="clear">Clear this slice</button></div>
         </div>
       </div>
-      <div class="ctrl">
+      <div class="ctrl" id="display-box">
         <span class="ctrl-label">Display</span>
         <label class="toggle" for="interp"><input type="checkbox" id="interp" checked> Interpolate (cubic B-spline)</label>
       </div>
@@ -189,8 +191,17 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
       <!-- step 1 -->
       <div data-step="t2w" class="panel">
         <div class="tasks"><h2>Tasks</h2><ol>
+          <li class="intro" data-spot="scan-box,display-box"><label><b>The image</b>
+            <ul><li>Another man from the same study as Block B</li>
+              <li>The <b>slider</b> moves through the whole prostate (head at the top)</li>
+              <li><b>Interpolate</b>: a smooth image; untick it to see the raw pixels</li></ul></label></li>
+          <li class="intro" data-spot="tool-box"><label><b>Drawing</b>
+            <ul><li><b>Draw around</b>: hold and circle the tumour, release to fill</li>
+              <li>Circle again to add more; the <b>eraser</b> trims the edge</li>
+              <li><b>Undo</b>, or clear the slice and start again</li>
+              <li>Cannot draw? Use a ready outline (below the tasks)</li></ul></label></li>
           <li><input type="checkbox" id="c1-1"><label for="c1-1">Find the tumour on T2w: a dark area at the back right of the prostate, next to the rectum.</label></li>
-          <li><input type="checkbox" id="c1-2"><label for="c1-2">Draw around it on <b>every slice where you see it</b> (move the slider). "Draw around" fills what you circle; circle again to add more, and use the eraser to trim the edge.</label></li>
+          <li><input type="checkbox" id="c1-2"><label for="c1-2">Draw around it on <b>every slice where you see it</b> (move the slider).</label></li>
           <li><input type="checkbox" id="c1-3"><label for="c1-3">Write the volume on the worksheet.</label></li>
         </ol></div>
         <div class="message" id="vol-t2w"></div>
@@ -233,10 +244,11 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
         <div class="note"><span class="key dash" style="border-color:#4cb4d0"></span>radiologist on T2w
           &nbsp; <span class="key dash" style="border-color:#f09a3e"></span>radiologist on ADC
           &nbsp; solid: yours</div>
+        <div class="message" id="expert-slices"></div>
         <div class="message"><b>The radiologist did the same.</b>
           <ul>
             <li>They found the tumour with T2w, ADC and DCE side by side, then drew it on each series separately, the DWI outline on the ADC map (Fedorov et al., Sci Data 2018).</li>
-            <li>Their ADC outline sits about 5.5 mm further back than their T2w outline. ADC is calculated from the b 0 and b 1400 images, so b 1400 is shifted the same way.</li>
+            <li>Their ADC outline sits about 3 mm further back than their T2w outline (5 mm in all, partly towards the feet). ADC is calculated from the b 0 and b 1400 images, so b 1400 is shifted the same way.</li>
             <li>The DWI is distorted: the air-filled balloon in the rectum bends the magnetic field, and DWI (EPI) turns that into a shift along the phase-encoding direction (front–back here).</li>
             <li>The DWI was also taken about 10 minutes after the T2w. The patient can move in between.</li>
             <li>In the study, tumour volumes drawn on ADC repeated worse than on T2w: 112 % vs 71 % (Fedorov et al., 2017).</li>
@@ -253,7 +265,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
   </section>
 
   <footer>
-    <span>Data: QIN-PROSTATE-Repeatability, patient PCAMPMRI-00009, first scan (Fedorov et al., Sci Data 2018; TCIA,
+    <span>Data: QIN-PROSTATE-Repeatability, patient PCAMPMRI-00007, first scan (Fedorov et al., Sci Data 2018; TCIA,
       doi:10.7937/K9/TCIA.2018.MR1CKGND; CC BY 4.0). 3 T, endorectal coil, DWI b 0 and 1400 s/mm², scanner ADC map.
       All images shown at the ADC slice positions on a 0.35 mm grid, resampled by nearest neighbour or cubic B-spline
       (your choice); the radiologist drew separately on T2w and on ADC.</span>
@@ -262,6 +274,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
 </div>
 
 <script src="contour_case.js"></script>
+<script src="stepper.js"></script>
 <script>
 (() => {
   "use strict";
@@ -300,6 +313,9 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
   const roiMask = bit => Array.from({ length: NS }, (_, k) => { const m = new Uint8Array(NN); for (let i = 0; i < NN; i++) m[i] = (ROI[k * NN + i] >> bit) & 1; return m; });
   const EXPERT = { t2w: roiMask(0), adc: roiMask(1) };
   const PROSTATE_T2 = roiMask(2);
+  const range = ms => { const k = ms.map((m, i) => m.some(v => v) ? i + 1 : 0).filter(Boolean); return k.length ? (k.length > 1 ? `slices ${k[0]}–${k[k.length - 1]}` : `slice ${k[0]}`) : "none"; };
+  const EXPERT_RANGE = { t2w: range(EXPERT.t2w), adc: range(EXPERT.adc) };
+  $("slice-mm").textContent = Math.round(SL);
 
   // ---------- state ----------
   const empty = () => Array.from({ length: NS }, () => new Uint8Array(NN));
@@ -363,7 +379,22 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
     imgChips(step === "t2w" ? ["t2w"] : step === "adc" ? ["adc", "b1400"] : ["t2w", "adc", "b0", "b1400"]);
     $("flick").hidden = $("flick-sep").hidden = step === "t2w" || step === "adc";
     setTools(); draw(); numbers();
+    Stepper.clear();
+    if (steppers[step]) steppers[step].refresh();
   }
+  // ---------- tasks: one at a time (stepper.js) ----------
+  const steppers = {};
+  const STEP_NAMES = { t2w: "draw on T2w", adc: "draw on DWI", compare: "compare", expert: "the radiologist" };
+  STEPS.forEach((step, si) => {
+    const box = document.querySelector(`[data-step="${step}"] .tasks`);
+    steppers[step] = Stepper.setup(box, {
+      key: "taskpos-contour-" + step, sticky: true,
+      prev: si > 0 ? () => { location.hash = STEPS[si - 1]; } : null,
+      next: si < STEPS.length - 1 ? () => { location.hash = STEPS[si + 1]; window.scrollTo({ top: 0 }); } : () => { location.href = "index.html"; },
+      nextLabel: si < STEPS.length - 1 ? `Next: ${STEP_NAMES[STEPS[si + 1]]} →` : "Done: back to all blocks",
+    });
+  });
+  document.querySelectorAll("[data-go]").forEach(b => { b.closest(".row").hidden = true; });   // the stepper's Next replaces these
   window.addEventListener("hashchange", () => show(location.hash.slice(1)));
 
   // ---------- numbers ----------
@@ -435,7 +466,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
       if (!on(r + 1, c)) add(c + 1, r + 1, c, r + 1);
       if (!on(r, c - 1)) add(c, r + 1, c, r);
     }
-    ctx.strokeStyle = color; ctx.lineWidth = 2.2; ctx.setLineDash(dash); ctx.beginPath();
+    ctx.beginPath();
     for (const k0 of out.keys()) {
       while (out.get(k0).length) {
         let k = k0; ctx.moveTo((k % W) * UP, Math.floor(k / W) * UP);
@@ -443,7 +474,9 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
         ctx.closePath();
       }
     }
-    ctx.stroke(); ctx.setLineDash([]);
+    ctx.setLineDash(dash);
+    ctx.strokeStyle = "rgba(0,0,0,0.65)"; ctx.lineWidth = 4.4; ctx.stroke();      // dark edge: readable on bright T2w fat too
+    ctx.strokeStyle = color; ctx.lineWidth = 2.4; ctx.stroke(); ctx.setLineDash([]);
   }
   function draw() {
     const k = st.slice, img = octx.createImageData(N, N);
@@ -472,6 +505,11 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
       ctx.strokeText(mm.toFixed(1) + " mm", tx, ty); ctx.fillText(mm.toFixed(1) + " mm", tx, ty);
     }
     $("tag").textContent = `${IMG_LABEL[st.img]} · slice ${k + 1} of ${NS}`;
+    if (st.step === "expert") {
+      const on = ms => ms[k].some(v => v), yes = v => v ? "yes" : "no";
+      $("expert-slices").innerHTML = `The radiologist's outlines are on different slices: <b>T2w ${EXPERT_RANGE.t2w}</b>, <b>ADC ${EXPERT_RANGE.adc}</b>.` +
+        `<br><span class="note">This slice (${k + 1}): T2w outline ${yes(on(EXPERT.t2w))}, ADC outline ${yes(on(EXPERT.adc))}.</span>`;
+    }
     $("slice-val").textContent = `${k + 1} / ${NS}`;
     $("scale").style.width = (10 / PX / N * 100) + "%";
   }

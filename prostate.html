@@ -58,6 +58,16 @@ h1 { font-size: 28px; line-height: 1.15; margin: 0; text-wrap: balance; }
 h2 { font-size: 16px; margin: 0; text-wrap: balance; }
 .lede { margin: 0; color: var(--muted); max-width: 72ch; }
 
+.sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 4px; }
+.toggle { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--ink); cursor: pointer; }
+.toggle input[role="switch"] { appearance: none; -webkit-appearance: none; width: 34px; height: 20px; margin: 0; border-radius: 999px;
+  background: var(--line); position: relative; cursor: pointer; flex: none; }
+.toggle input[role="switch"]::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+  background: #ffffff; box-shadow: 0 1px 2px rgba(0, 0, 0, .3); }
+.toggle input[role="switch"]:checked { background: var(--teal); }
+.toggle input[role="switch"]:checked::after { left: 16px; }
+@media (prefers-reduced-motion: no-preference) { .toggle input[role="switch"], .toggle input[role="switch"]::after { transition: background .15s, left .15s; } }
+.toggle input { width: 15px; height: 15px; margin: 0; accent-color: var(--teal); }
 .tasks { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
 .tasks h2 { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .tasks h2 .note { font-weight: normal; }
@@ -124,17 +134,27 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
     <a class="back" href="index.html">← All blocks</a>
     <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · Block B</div>
     <h1>Prostate ADC Case</h1>
-    <p class="lede">A man with a tumour in the peripheral zone of the prostate. He was scanned twice, one week apart, on the
+    <p class="lede">A man with a tumour in the peripheral zone of the prostate. He was scanned twice, 13 days apart, on the
       same 3 T scanner with the same protocol. A radiologist outlined the tumour on the ADC map of each scan.</p>
   </header>
 
   <div class="tasks">
     <h2>Tasks <span class="note">tick them off as you go · write your answers on the worksheet</span></h2>
     <ol>
-      <li><input type="checkbox" id="b-1"><label for="b-1">Find the tumour on both scans: dark on the ADC map. Move through the slices and switch to T2w.</label></li>
+      <li class="intro" data-spot="img-box,scans-box"><label><b>The two scans</b>
+        <ul><li>Same man, same scanner, 13 days apart</li>
+          <li>Scan 1 on the left, scan 2 on the right</li>
+          <li>The <b>slider</b> moves through the slices (head at the top)</li>
+          <li><b>Image</b>: the ADC map (tumour dark), DWI b 1400 (tumour bright), or T2w</li></ul></label></li>
+      <li class="intro" data-spot="roi-box,table-box"><label><b>The numbers</b>
+        <ul><li><b>ROI</b> = the outline the ADC is measured in</li>
+          <li>The ROI buttons switch between four outlines of the same tumour</li>
+          <li><b>Table</b>: mean, median and 10th percentile ADC on each scan, and the change</li>
+          <li><b>Histogram</b>: every ADC value inside the outline</li></ul></label></li>
+      <li><input type="checkbox" id="b-1"><label for="b-1">Find the tumour on both scans: dark on the ADC map, bright on b 1400. Move through the slices and switch images. Then switch on <b>Outline</b> to check.</label></li>
       <li><input type="checkbox" id="b-2"><label for="b-2">With the <b>expert ROI drawn on ADC</b>, read the mean ADC on scan 1 and scan 2.</label></li>
       <li><input type="checkbox" id="b-3"><label for="b-3">Now change the ROI: <b>grown 2 mm</b>, <b>shrunk 2 mm</b>, and <b>expert, on T2w</b> (the same radiologist's outline, drawn on the T2w image). How much does the mean move within one scan? Which value moves least: the mean, the median or the 10th percentile?</label></li>
-      <li><input type="checkbox" id="b-4"><label for="b-4">Imagine scan 1 was taken before treatment and scan 2 one week into treatment. Has the tumour responded? Write your answer down, then answer below.</label></li>
+      <li data-spot="reveal-sec"><input type="checkbox" id="b-4"><label for="b-4">Imagine scan 1 was taken before treatment and scan 2 two weeks into treatment. Has the tumour responded? Write your answer on the worksheet, then answer here below.</label></li>
       <li class="extra"><input type="checkbox" id="b-5"><label for="b-5">Does your conclusion depend on which ROI you used?</label></li>
     </ol>
   </div>
@@ -142,19 +162,20 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
   <section class="bench">
     <div class="figure">
       <div class="row" style="justify-content:space-between">
-        <div class="ctrl">
+        <div class="ctrl" id="img-box">
           <span class="ctrl-label">Image</span>
           <div class="chips" id="img-chips"></div>
         </div>
-        <div class="ctrl">
+        <div class="ctrl" id="roi-box">
           <span class="ctrl-label">ROI</span>
-          <div class="chips" id="roi-chips"></div>
+          <div class="chips"><span class="chips" id="roi-chips"></span><span class="sep"></span>
+            <label class="toggle" for="show-roi"><input type="checkbox" role="switch" id="show-roi" checked> Outline</label></div>
         </div>
       </div>
-      <div class="viewer-row">
+      <div class="viewer-row" id="scans-box">
       <div class="pair">
-        <div class="viewer"><canvas id="cv0" width="480" height="480" aria-label="Scan 1"></canvas><span class="tag">Scan 1 · day 0</span><span class="side side-r">R</span><span class="side side-l">L</span></div>
-        <div class="viewer"><canvas id="cv1" width="480" height="480" aria-label="Scan 2"></canvas><span class="tag">Scan 2 · day 7</span><span class="side side-r">R</span><span class="side side-l">L</span></div>
+        <div class="viewer"><canvas id="cv0" width="480" height="480" aria-label="Scan 1"></canvas><span class="tag">Scan 1</span><span class="side side-r">R</span><span class="side side-l">L</span></div>
+        <div class="viewer"><canvas id="cv1" width="480" height="480" aria-label="Scan 2"></canvas><span class="tag">Scan 2 · 13 days later</span><span class="side side-r">R</span><span class="side side-l">L</span></div>
       </div>
       <div class="vslider">
         <span class="ctrl-label">Slice</span>
@@ -166,8 +187,8 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
       </div>
       <div class="note" id="img-note"></div>
     </div>
-    <div class="panel">
-      <div class="table-box">
+    <div class="panel" id="stats-box">
+      <div class="table-box" id="table-box">
         <table>
           <thead><tr><th id="roi-name">Expert, on ADC</th><th class="num">Scan 1</th><th class="num">Scan 2</th><th class="num">Change</th></tr></thead>
           <tbody id="stats"></tbody>
@@ -183,7 +204,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
     </div>
   </section>
 
-  <section class="reveal" aria-live="polite">
+  <section class="reveal" id="reveal-sec" aria-live="polite">
     <h2>Task 4: has the tumour responded?</h2>
     <div class="row" id="answers">
       <button type="button" id="ans-yes">Yes, a response</button>
@@ -209,21 +230,23 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
           <li>Only when it is bigger than the limit: <b>47 %</b> for prostate (QIBA), <b>42 %</b> in this study.</li>
           <li>The limit is not a count of patients. A repeated scan stays inside it <b>19 times out of 20</b>.</li>
           <li>So 1 in 20 lands outside by chance. Here 1 of 10 did: a tiny lesion, +44 %.</li>
-          <li>Average change with no treatment: <b>16 %</b>. This man's +13 % is ordinary.</li>
+          <li>Average change with no treatment: <b>16 %</b>. This man's <span id="me-change"></span> is ordinary.</li>
           <li id="roi-method-bullet"></li>
         </ul></div>
     </div>
   </section>
 
   <footer>
-    <span>Data: QIN-PROSTATE-Repeatability, patient PCAMPMRI-00009 (Fedorov et al., Sci Data 2018; TCIA,
+    <span>Data: QIN-PROSTATE-Repeatability, patient PCAMPMRI-00011 (Fedorov et al., Sci Data 2018; TCIA,
       doi:10.7937/K9/TCIA.2018.MR1CKGND; CC BY 4.0). 3 T, endorectal coil, DWI b 0 and 1400 s/mm², scanner ADC map;
-      ROI drawn by a radiologist on the ADC map. Grown and shrunk ROIs made for this exercise; "Expert, on T2w" is the radiologist's T2w tumour ROI placed on the ADC map.</span>
+      ROI drawn by a radiologist on the ADC map. Grown and shrunk ROIs made for this exercise; "Expert, on T2w" is the radiologist's T2w tumour ROI placed on the ADC map.
+      For this exercise his two scans are shown in reverse order: scan 1 here is the later of the two (his tumour ADC fell 9 % in the order they were taken).</span>
     <span>Repeatability: Fedorov et al., Invest Radiol 2017;52:538–46, Table 5 (tumour ROI mean ADC: repeatability coefficient 42 %, mean difference 16 %). QIBA DWI Profile, 2022 (prostate 47 %).</span>
   </footer>
 </div>
 
 <script src="prostate_case.js"></script>
+<script src="stepper.js"></script>
 <script>
 (() => {
   "use strict";
@@ -248,9 +271,15 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
   ];
   const scans = CASE.scans.map(s => {
     const n = s.size * s.size;
-    return { ...s, n, adc: new Uint16Array(b64(s.adc).buffer), t2: b64(s.t2), roi: b64(s.roi), lt2: b64(s.lesion_t2) };
+    return { ...s, n, adc: new Uint16Array(b64(s.adc).buffer), t2: b64(s.t2), roi: b64(s.roi), lt2: b64(s.lesion_t2), b14: b64(s.b1400) };
   });
-  const st = { img: "adc", roi: "expert", slice: scans[0].lesion_slices[1] ?? 2 };
+  const st = { img: "adc", roi: "expert", slice: scans[0].lesion_slices[1] ?? 2, showRoi: true };
+  function setShowRoi(on) {
+    st.showRoi = on; $("show-roi").checked = on;
+    $("roi-chips").querySelectorAll("button").forEach(b => { b.disabled = !on; });   // no peeking at the outline via the ROI buttons
+    drawImages();
+  }
+  $("show-roi").addEventListener("change", e => setShowRoi(e.target.checked));
 
   function values(scan, bit) {
     const out = [];
@@ -276,11 +305,11 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
       box.appendChild(b);
     }
   }
-  chips("img-chips", [{ key: "adc", label: "ADC" }, { key: "t2", label: "T2w" }], st.img, it => { st.img = it.key; drawImages(); });
+  chips("img-chips", [{ key: "adc", label: "ADC" }, { key: "b14", label: "DWI b 1400" }, { key: "t2", label: "T2w" }], st.img, it => { st.img = it.key; drawImages(); });
   // the ROI buttons work on the ADC map, so pressing one from the T2w view switches back to ADC
   chips("roi-chips", ROIS, st.roi, it => {
     st.roi = it.key;
-    if (st.img !== "adc") { st.img = "adc"; $("img-chips").querySelectorAll("button").forEach((b, i) => b.setAttribute("aria-pressed", String(i === 0))); }
+    if (st.img === "t2") { st.img = "adc"; $("img-chips").querySelectorAll("button").forEach((b, i) => b.setAttribute("aria-pressed", String(i === 0))); }
     drawImages(); drawStats();
   });
   const sl = $("slice");
@@ -298,7 +327,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
       const off = document.createElement("canvas"); off.width = res; off.height = res;
       const oc = off.getContext("2d"), img = oc.createImageData(res, res);
       for (let i = 0; i < res * res; i++) {
-        const g = st.img === "t2" ? s.t2[k * res * res + i] : Math.min(255, s.adc[k * N * N + i] / 2500 * 255);
+        const g = st.img === "t2" ? s.t2[k * res * res + i] : st.img === "b14" ? s.b14[k * N * N + i] : Math.min(255, s.adc[k * N * N + i] / 2500 * 255);
         img.data[4 * i] = img.data[4 * i + 1] = img.data[4 * i + 2] = g; img.data[4 * i + 3] = 255;
       }
       oc.putImageData(img, 0, 0);
@@ -306,11 +335,13 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
       ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
       ctx.drawImage(off, 0, 0, cv.width, cv.height);
       // ADC: the chosen ROI (orange). T2w: only the radiologist's tumour ROI drawn on T2w (teal), for orientation.
+      if (!st.showRoi) return;
       if (st.img === "t2") outline(ctx, i => s.lt2[k * 4 * N * N + i] !== 0, 2 * N, UP / 2, "#4cb4d0", []);
       else outline(ctx, i => (s.roi[k * N * N + i] & bit) !== 0, N, UP, "#f09a3e", []);
     });
     $("img-note").textContent = st.img === "adc"
       ? "ADC map, 0 to 2.5 × 10⁻³ mm²/s: dark = restricted water (dense tumour). The orange line is the ROI."
+      : st.img === "b14" ? "DWI b 1400: bright = restricted water, so the tumour is bright here and dark on the ADC map. Same grid as the ADC map; the orange line is the ROI."
       : "T2w at the same position, to help you find the tumour. The outline is the radiologist's, drawn on T2w (the “Expert, on T2w” ROI). All numbers are measured on the ADC map.";
   }
 
@@ -339,7 +370,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
       row("Median ADC", a.median, b.median, f3, false) +
       row("10th percentile", a.p10, b.p10, f3, false);
     const e = STATS.expert[0];
-    const t2note = st.roi === "t2" ? " This outline was drawn on T2w. The DWI is shifted 4–6 mm towards the rectum, so on the ADC map it covers partly different tissue. Look at the change column too." : "";
+    const t2note = st.roi === "t2" ? " This outline was drawn on T2w. The DWI is shifted 5–7 mm relative to T2w, so on the ADC map it covers partly different tissue. Look at the change column too." : "";
     $("roi-effect").innerHTML = st.roi === "expert"
       ? "The radiologist's outline, drawn on the ADC map. Try the other ROIs and watch the mean on scan 1."
       : `On scan 1 alone, this ROI moves the mean from <b>${e.mean.toFixed(3)}</b> (expert) to <b>${a.mean.toFixed(3)}</b>: <b>${pct(a.mean / e.mean - 1)}</b>, with no change in the patient.${t2note}`;
@@ -411,6 +442,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
 
   function roiMethodBullet() {
     const ch = k => STATS[k][1].mean / STATS[k][0].mean - 1;
+    $("me-change").textContent = pct(ch("expert"));
     $("roi-method-bullet").innerHTML = `Same man, same radiologist: outline drawn on ADC <b>${pct(ch("expert"))}</b>, drawn on T2w <b>${pct(ch("t2"))}</b>. The ROI method alone changes the answer.`;
   }
   function drawCohort() {
@@ -440,6 +472,12 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
   }
 
   drawImages(); drawStats();
+  // ---------- tasks: one at a time (stepper.js) ----------
+  Stepper.setup(document.querySelector(".tasks"), {
+    key: "taskpos-prostate", sticky: true, prev: null,
+    onShow: li => { if (li.querySelector("#b-1")) setShowRoi(false); else if (!st.showRoi) setShowRoi(true); },   // find the tumour yourself first
+    next: () => { location.href = "index.html"; }, nextLabel: "Done: back to all blocks",
+  });
 })();
 </script>
 
