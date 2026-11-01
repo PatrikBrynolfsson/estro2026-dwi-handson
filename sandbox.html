@@ -139,10 +139,10 @@ td.hidden-val { color: var(--guide); text-align: right; }
 .tasks ol { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; counter-reset: task; }
 .tasks li { display: grid; grid-template-columns: 22px 26px minmax(0, 1fr); gap: 4px; align-items: start; font-size: 14.5px; }
 .tasks li::before { counter-increment: task; content: counter(task) "."; font-family: var(--mono); color: var(--teal); font-weight: bold; padding-top: 1px; grid-column: 2; grid-row: 1; }
-.tasks li input { grid-column: 1; grid-row: 1; width: 17px; height: 17px; margin: 2px 0 0; accent-color: var(--teal); cursor: pointer; }
-.tasks li label { grid-column: 3; grid-row: 1; cursor: pointer; }
-.tasks li.extra label::before { content: "Bonus question · "; color: var(--teal); font-weight: bold; }
-.tasks li input:checked ~ label { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--guide); }
+.tasks li > input { grid-column: 1; grid-row: 1; width: 17px; height: 17px; margin: 2px 0 0; accent-color: var(--teal); cursor: pointer; }
+.tasks li > label { grid-column: 3; grid-row: 1; cursor: pointer; }
+.tasks li.extra > label::before { content: "Bonus question · "; color: var(--teal); font-weight: bold; }
+.tasks li > input:checked ~ label { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--guide); }
 /* keep the image and its slider on screen under the sticky task card on laptop-height screens */
 @media (min-height: 640px) and (min-width: 700px) { #viewer1 { max-width: max(320px, calc(100vh - 280px)); } }
 .task { border-left: 3px solid var(--teal); padding: 2px 0 2px 12px; font-size: 14px; }
@@ -162,7 +162,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
     <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · Block A</div>
     <h1>ADC &amp; IVIM Sandbox</h1>
     <p class="lede">A real brain scan with 21 b-values. Choose which b-values go into the ADC and see what number you get.
-      Work in pairs and write your predictions on the worksheet before you click.</p>
+      Work in pairs. Type your answers in the box under each task, and predict before you click.</p>
   </header>
 
   <nav aria-label="Steps">
@@ -174,7 +174,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
   <!-- STEP 1: real images -->
   <section id="tab-images" class="tab">
     <div class="tasks" data-step="1">
-      <h2>Tasks <span class="note">tick them off as you go · write your answers on the worksheet</span></h2>
+      <h2>Tasks <span class="note">answers are saved in this browser</span></h2>
       <ol>
         <li class="intro" data-spot="viewer1,b-slider-box"><label><b>The images</b>
           <ul><li>The same slice, scanned 21 times</li>
@@ -256,7 +256,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
     <div class="tasks" data-step="2">
       <h2>Tasks <span class="note">a simulated tumour: the brain scan has none</span></h2>
       <ol>
-        <li><input type="checkbox" id="t2-1"><label for="t2-1">Predict first: write the four ADC values on the worksheet (b 0 &amp; 800 and b 200 &amp; 800, before and after treatment).</label></li>
+        <li><input type="checkbox" id="t2-1"><label for="t2-1">Predict first: write down the four ADC values (b 0 &amp; 800 and b 200 &amp; 800, before and after treatment), then lock them.</label></li>
         <li><input type="checkbox" id="t2-2"><label for="t2-2">Press <b>Show the answers</b>. Which b-values see a change?</label></li>
         <li><input type="checkbox" id="t2-3"><label for="t2-3">Is the change bigger than the 11 % QIBA limit for brain? Would you call it a response, or no response?</label></li>
         <li class="extra"><input type="checkbox" id="t2-4"><label for="t2-4">Look at the b 50 &amp; 800 row. Is a lowest b-value of 50 enough?</label></li>
@@ -385,7 +385,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
   const pct = x => (x >= 0 ? "+" : "−") + Math.abs(x * 100).toFixed(Math.abs(x) < 0.1 ? 1 : 0) + " %";
 
   // ---------- task ticks (remembered in this browser only) ----------
-  document.querySelectorAll(".tasks input[type=checkbox]").forEach(cb => {
+  document.querySelectorAll(".tasks li > input[type=checkbox]").forEach(cb => {
     try { cb.checked = localStorage.getItem("task-" + cb.id) === "1"; } catch (e) { /* storage blocked */ }
     cb.addEventListener("change", () => { try { localStorage.setItem("task-" + cb.id, cb.checked ? "1" : "0"); } catch (e) { /* ignore */ } });
   });
@@ -906,6 +906,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
   scan(1);
 })();
 </script>
+<script src="answers.js"></script>
 
 </body>
 </html>

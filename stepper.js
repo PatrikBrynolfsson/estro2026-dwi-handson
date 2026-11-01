@@ -22,11 +22,11 @@
 .tasks.stepper ol { gap: 0; }
 .tasks.stepper li { font-size: 17px; line-height: 1.45; grid-template-columns: 30px minmax(0, 1fr); min-height: 3.2em; }
 .tasks.stepper li::before { content: attr(data-n) "."; grid-column: 1; font-size: 17px; }
-.tasks.stepper li input { display: none; }
-.tasks.stepper li label { grid-column: 2; cursor: default; }
-.tasks.stepper li input:checked ~ label { color: inherit; text-decoration: none; }
+.tasks.stepper li > input[type=checkbox] { display: none; }
+.tasks.stepper li > label { grid-column: 2; cursor: default; }
+.tasks.stepper li > input:checked ~ label { color: inherit; text-decoration: none; }
 .tasks.stepper li.intro::before { content: none; }
-.tasks.stepper li.intro label { grid-column: 1 / -1; }
+.tasks.stepper li.intro > label { grid-column: 1 / -1; }
 .tasks.stepper li.intro ul { margin: 4px 0 0; padding-left: 22px; display: flex; flex-direction: column; gap: 2px; }
 .tasks.stepper li.intro ul li { display: list-item; font-size: 16px; min-height: 0; }
 .tasks.stepper li.intro ul li::before { content: none; }

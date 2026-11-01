@@ -74,10 +74,10 @@ h2 { font-size: 16px; margin: 0; text-wrap: balance; }
 .tasks ol { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; counter-reset: task; }
 .tasks li { display: grid; grid-template-columns: 22px 26px minmax(0, 1fr); gap: 4px; align-items: start; font-size: 14.5px; }
 .tasks li::before { counter-increment: task; content: counter(task) "."; font-family: var(--mono); color: var(--teal); font-weight: bold; padding-top: 1px; grid-column: 2; grid-row: 1; }
-.tasks li input { grid-column: 1; grid-row: 1; width: 17px; height: 17px; margin: 2px 0 0; accent-color: var(--teal); cursor: pointer; }
-.tasks li label { grid-column: 3; grid-row: 1; cursor: pointer; }
-.tasks li.extra label::before { content: "Bonus question · "; color: var(--teal); font-weight: bold; }
-.tasks li input:checked ~ label { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--guide); }
+.tasks li > input { grid-column: 1; grid-row: 1; width: 17px; height: 17px; margin: 2px 0 0; accent-color: var(--teal); cursor: pointer; }
+.tasks li > label { grid-column: 3; grid-row: 1; cursor: pointer; }
+.tasks li.extra > label::before { content: "Bonus question · "; color: var(--teal); font-weight: bold; }
+.tasks li > input:checked ~ label { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--guide); }
 
 .bench { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 24px; align-items: start; }
 @media (max-width: 900px) { .bench { grid-template-columns: minmax(0, 1fr); } }
@@ -139,7 +139,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
   </header>
 
   <div class="tasks">
-    <h2>Tasks <span class="note">tick them off as you go · write your answers on the worksheet</span></h2>
+    <h2>Tasks <span class="note">answers are saved in this browser</span></h2>
     <ol>
       <li class="intro" data-spot="img-box,scans-box"><label><b>The two scans</b>
         <ul><li>Same man, same scanner, 13 days apart</li>
@@ -154,7 +154,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
       <li><input type="checkbox" id="b-1"><label for="b-1">Find the tumour on both scans: dark on the ADC map, bright on b 1400. Move through the slices and switch images. Then switch on <b>Outline</b> to check.</label></li>
       <li><input type="checkbox" id="b-2"><label for="b-2">With the <b>expert ROI drawn on ADC</b>, read the mean ADC on scan 1 and scan 2.</label></li>
       <li><input type="checkbox" id="b-3"><label for="b-3">Now change the ROI: <b>grown 2 mm</b>, <b>shrunk 2 mm</b>, and <b>expert, on T2w</b> (the same radiologist's outline, drawn on the T2w image). How much does the mean move within one scan? Which value moves least: the mean, the median or the 10th percentile?</label></li>
-      <li data-spot="reveal-sec"><input type="checkbox" id="b-4"><label for="b-4">Imagine scan 1 was taken before treatment and scan 2 two weeks into treatment. Has the tumour responded? Write your answer on the worksheet, then answer here below.</label></li>
+      <li data-spot="reveal-sec"><input type="checkbox" id="b-4"><label for="b-4">Imagine scan 1 was taken before treatment and scan 2 two weeks into treatment. Has the tumour responded? Lock your prediction here, then give the same answer further down the page to see what happened.</label></li>
       <li class="extra"><input type="checkbox" id="b-5"><label for="b-5">Does your conclusion depend on which ROI you used?</label></li>
     </ol>
   </div>
@@ -256,7 +256,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
   if (!CASE) { document.querySelector(".bench").innerHTML = `<div class="message">The case data (prostate_case.js) did not load. Keep it in the same folder as this page.</div>`; return; }
 
   // ---------- task ticks (this browser only) ----------
-  document.querySelectorAll(".tasks input[type=checkbox]").forEach(cb => {
+  document.querySelectorAll(".tasks li > input[type=checkbox]").forEach(cb => {
     try { cb.checked = localStorage.getItem("task-" + cb.id) === "1"; } catch (e) { /* storage blocked */ }
     cb.addEventListener("change", () => { try { localStorage.setItem("task-" + cb.id, cb.checked ? "1" : "0"); } catch (e) { /* ignore */ } });
   });
@@ -480,6 +480,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
   });
 })();
 </script>
+<script src="answers.js"></script>
 
 </body>
 </html>

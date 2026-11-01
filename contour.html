@@ -104,10 +104,10 @@ button:focus-visible, input:focus-visible, nav a:focus-visible { outline: 2px so
 .tasks ol { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; counter-reset: task; }
 .tasks li { display: grid; grid-template-columns: 22px 26px minmax(0, 1fr); gap: 4px; align-items: start; font-size: 14.5px; }
 .tasks li::before { counter-increment: task; content: counter(task) "."; font-family: var(--mono); color: var(--teal); font-weight: bold; padding-top: 1px; grid-column: 2; grid-row: 1; }
-.tasks li input { grid-column: 1; grid-row: 1; width: 17px; height: 17px; margin: 2px 0 0; accent-color: var(--teal); cursor: pointer; }
-.tasks li label { grid-column: 3; grid-row: 1; cursor: pointer; }
-.tasks li.extra label::before { content: "Bonus question · "; color: var(--teal); font-weight: bold; }
-.tasks li input:checked ~ label { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--guide); }
+.tasks li > input { grid-column: 1; grid-row: 1; width: 17px; height: 17px; margin: 2px 0 0; accent-color: var(--teal); cursor: pointer; }
+.tasks li > label { grid-column: 3; grid-row: 1; cursor: pointer; }
+.tasks li.extra > label::before { content: "Bonus question · "; color: var(--teal); font-weight: bold; }
+.tasks li > input:checked ~ label { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--guide); }
 
 .table-box { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-size: 14px; }
@@ -202,7 +202,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
               <li>Cannot draw? Use a ready outline (below the tasks)</li></ul></label></li>
           <li><input type="checkbox" id="c1-1"><label for="c1-1">Find the tumour on T2w: a dark area at the back right of the prostate, next to the rectum.</label></li>
           <li><input type="checkbox" id="c1-2"><label for="c1-2">Draw around it on <b>every slice where you see it</b> (move the slider).</label></li>
-          <li><input type="checkbox" id="c1-3"><label for="c1-3">Write the volume on the worksheet.</label></li>
+          <li><input type="checkbox" id="c1-3"><label for="c1-3">Write down the volume of your outline.</label></li>
         </ol></div>
         <div class="message" id="vol-t2w"></div>
         <div class="ctrl"><span class="ctrl-label">Cannot draw? Use a ready outline</span>
@@ -214,7 +214,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
         <div class="tasks"><h2>Tasks</h2><ol>
           <li><input type="checkbox" id="c2-1"><label for="c2-1">Predict first: will your outline on DWI be bigger, the same or smaller than on T2w?</label></li>
           <li><input type="checkbox" id="c2-2"><label for="c2-2">Draw around the tumour on the DWI, on every slice where you see it. Switch between the ADC map (tumour dark) and b 1400 (tumour bright), as radiologists read them together. Your T2w outline is hidden.</label></li>
-          <li><input type="checkbox" id="c2-3"><label for="c2-3">Write the volume on the worksheet.</label></li>
+          <li><input type="checkbox" id="c2-3"><label for="c2-3">Write down the volume of your outline.</label></li>
         </ol></div>
         <div class="ctrl"><span class="ctrl-label">Your prediction</span>
           <div class="chips" id="predict-chips"></div></div>
@@ -283,7 +283,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
   if (!CASE) { document.querySelector(".bench").innerHTML = `<div class="message">The case data (contour_case.js) did not load. Keep it in the same folder as this page.</div>`; return; }
 
   // ---------- task ticks (this browser only) ----------
-  document.querySelectorAll(".tasks input[type=checkbox]").forEach(cb => {
+  document.querySelectorAll(".tasks li > input[type=checkbox]").forEach(cb => {
     try { cb.checked = localStorage.getItem("task-" + cb.id) === "1"; } catch (e) { /* storage blocked */ }
     cb.addEventListener("change", () => { try { localStorage.setItem("task-" + cb.id, cb.checked ? "1" : "0"); } catch (e) { /* ignore */ } });
   });
@@ -589,6 +589,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
   }).catch(() => { document.querySelector(".bench").innerHTML = `<div class="message">The images could not be decoded. Try another browser.</div>`; });
 })();
 </script>
+<script src="answers.js"></script>
 
 </body>
 </html>
