@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Contouring on PET</title>
+</head>
+<body>
+
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* PET Block D. Same shell as Blocks A-C. The simulated scan from Block C (pet_recon.js): draw the tumour, then the
+   automatic methods (41 % / 50 % of SUVmax, SUV 2.5, adaptive, gradient), the expert outline, and the C -> D link. */
+:root {
+  --bg: #ffffff; --surface: #f4f6f9; --line: #dde2ea; --ink: #1a1a1a; --muted: #5f6672; --guide: #9aa0a6;
+  --teal: #2a93b0; --red: #e5484d; --orange: #e0821a; --green: #2f9e5b; --chip: #eef1f5; --chip-on: #1a1a1a; --chip-on-fg: #ffffff;
+  --font: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  --mono: Consolas, "SF Mono", Menlo, "Liberation Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14171c; --surface: #1c2027; --line: #2e3440; --ink: #e9ecf1; --muted: #a2aab7; --guide: #5f6773;
+    --teal: #4cb4d0; --red: #f2696d; --orange: #f09a3e; --green: #4cc27e; --chip: #232832; --chip-on: #e9ecf1; --chip-on-fg: #14171c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14171c; --surface: #1c2027; --line: #2e3440; --ink: #e9ecf1; --muted: #a2aab7; --guide: #5f6773;
+  --teal: #4cb4d0; --red: #f2696d; --orange: #f09a3e; --green: #4cc27e; --chip: #232832; --chip-on: #e9ecf1; --chip-on-fg: #14171c;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 32px;
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+header { display: flex; flex-direction: column; gap: 4px; }
+.back { align-self: flex-start; text-decoration: none; color: var(--ink); background: var(--chip); border: 1px solid var(--line); border-radius: 8px; padding: 4px 12px; font-size: 14px; font-weight: bold; }
+.back:hover { border-color: var(--guide); }
+.eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-size: 28px; line-height: 1.15; margin: 0; text-wrap: balance; }
+h2 { font-size: 16px; margin: 0; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); max-width: 72ch; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+nav { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid var(--line); }
+nav a { text-decoration: none; color: var(--muted); padding: 8px 12px; border-bottom: 3px solid transparent; font-weight: bold; margin-bottom: -1px; }
+nav a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--teal); }
+nav a:hover { color: var(--ink); }
+.step-no { font-family: var(--mono); color: var(--teal); margin-right: 6px; }
+.bench { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 880px) { .bench { grid-template-columns: minmax(0, 1fr); } }
+@media (min-width: 881px) { .bench { align-items: stretch; } .bench > .panel > [data-step] > .tasks { flex: 0 0 auto; } }
+.figure, .panel { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.viewer-row { display: grid; grid-template-columns: minmax(0, 1fr) 62px 70px; /* fixed side columns: the image must not move when a label changes */ gap: 10px; align-items: stretch; max-width: 640px; }
+.viewer { position: relative; background: #000000; border-radius: 10px; overflow: hidden; width: 100%; align-self: start; }
+.viewer.light { background: #ffffff; outline: 1px solid var(--line); }
+.viewer canvas { display: block; width: auto; height: auto; max-width: 100%; max-height: 62vh; margin: 0 auto; touch-action: none; cursor: crosshair; }
+.viewer .tag { position: absolute; left: 10px; top: 8px; font-size: 13px; font-weight: bold; pointer-events: none; color: #ffffff; text-shadow: 0 1px 2px #000000; }
+.viewer.light .tag { color: #1a1a1a; text-shadow: none; }
+.viewer .side { position: absolute; top: 50%; font-size: 12px; font-weight: bold; pointer-events: none; color: #c8ccd2; }
+.viewer.light .side { color: #5f6672; }
+.viewer .side-r { left: 8px; } .viewer .side-l { right: 8px; }
+.vslider { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+.vslider input { writing-mode: vertical-lr; direction: rtl; flex: 1; min-height: 120px; width: 26px; margin: 0; accent-color: var(--teal); }
+.vslider .mono { font-size: 13px; color: var(--ink); white-space: nowrap; }
+.cbar { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+.cbar .bar { position: relative; flex: 1; min-height: 120px; display: flex; gap: 4px; }
+.cbar canvas { width: 14px; height: 100%; border: 1px solid var(--line); border-radius: 3px; }
+.cbar .ticks { display: flex; flex-direction: column; justify-content: space-between; font-family: var(--mono); color: var(--ink); font-size: 12px; white-space: nowrap; }
+.ctrls { display: flex; flex-wrap: wrap; gap: 10px 22px; max-width: 640px; }
+.ctrl { display: flex; flex-direction: column; gap: 6px; }
+.ctrl-label { font-size: 13px; font-weight: bold; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+button { font: inherit; font-size: 14px; color: var(--ink); background: var(--chip); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; cursor: pointer; }
+button:hover { border-color: var(--guide); }
+button[aria-pressed="true"] { background: var(--chip-on); color: var(--chip-on-fg); border-color: var(--chip-on); }
+button.primary { background: var(--teal); color: #ffffff; border-color: var(--teal); font-weight: bold; border-radius: 8px; padding: 7px 14px; }
+button.quiet { border-radius: 8px; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button:focus-visible, input:focus-visible, nav a:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.readout { max-width: 640px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; font-size: 14.5px; display: flex; flex-direction: column; gap: 2px; min-height: 3.4em; }
+.readout b.mono { font-size: 15.5px; }
+.cond { max-width: 640px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }
+.tasks { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.tasks ol { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; counter-reset: task; }
+.tasks li { display: grid; grid-template-columns: 22px 26px minmax(0, 1fr); gap: 4px; align-items: start; font-size: 14.5px; }
+.tasks li::before { counter-increment: task; content: counter(task) "."; font-family: var(--mono); color: var(--teal); font-weight: bold; padding-top: 1px; grid-column: 2; grid-row: 1; }
+.tasks li > input { grid-column: 1; grid-row: 1; width: 17px; height: 17px; margin: 2px 0 0; accent-color: var(--teal); cursor: pointer; }
+.tasks li > label { grid-column: 3; grid-row: 1; cursor: pointer; }
+.tasks li.extra > label::before { content: "Bonus question · "; color: var(--teal); font-weight: bold; }
+.tasks li > .after { grid-column: 2 / -1; }
+.table-box { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 13px; color: var(--muted); font-weight: bold; }
+td.num, th.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+tr.on td { font-weight: bold; }
+.message { background: var(--surface); border-radius: 10px; padding: 12px 14px; font-size: 14.5px; }
+.message ul { margin: 6px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 3px; }
+.message.big { border-left: 4px solid var(--teal); font-size: 16px; }
+.note { font-size: 12.5px; color: var(--muted); }
+footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+@media (prefers-reduced-motion: no-preference) { button { transition: background .12s, color .12s, border-color .12s; } }
+.tools { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; max-width: 640px; }
+.key { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.check-row { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+.check-row input { width: 17px; height: 17px; accent-color: var(--teal); }
+</style>
+
+<div class="wrap">
+  <header>
+    <a class="back" href="pet.html">← All blocks</a>
+    <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · PET · Block D</div>
+    <h1>Contouring on PET</h1>
+    <p class="lede">The same simulated scan. Draw the tumour yourself, then let five automatic methods draw it. Compare them with
+      each other, with the expert outline, and with a different reconstruction of the same data.</p>
+  </header>
+
+  <nav aria-label="Steps">
+    <a href="#draw" data-tab="draw"><span class="step-no">1</span>Draw</a>
+    <a href="#auto" data-tab="auto"><span class="step-no">2</span>Automatic methods</a>
+    <a href="#recon" data-tab="recon"><span class="step-no">3</span>Another reconstruction</a>
+  </nav>
+
+  <section class="bench">
+    <div class="figure">
+      <div class="cond" id="recon-box" hidden>
+        <div class="ctrl"><span class="ctrl-label">Iterations (OSEM, 16 subsets)</span><div class="chips" id="iter-chips"></div></div>
+        <div class="ctrl"><span class="ctrl-label">Post-filter</span><div class="chips" id="filt-chips"></div></div>
+      </div>
+      <div class="cond" id="method-box" hidden>
+        <div class="ctrl"><span class="ctrl-label">Method</span><div class="chips" id="method-chips"></div></div>
+        <label class="check-row"><input type="checkbox" id="show-expert"> Show the expert outline (dashed)</label>
+        <label class="check-row"><input type="checkbox" id="show-mine" checked> Show my outline</label>
+      </div>
+      <div class="tools" id="tool-box">
+        <div class="chips" id="tool-chips"></div>
+        <button type="button" class="quiet" id="undo">Undo</button>
+        <button type="button" class="quiet" id="clear">Clear this slice</button>
+      </div>
+      <div class="viewer-row" id="scan-box">
+        <div class="viewer" id="viewer">
+          <canvas id="cv" aria-label="PET image"></canvas>
+          <span class="tag" id="tag"></span><span class="side side-r">R</span><span class="side side-l">L</span>
+        </div>
+        <div class="vslider" id="slice-box">
+          <span class="ctrl-label">Slice</span><span>head</span>
+          <input type="range" id="slice" min="0" max="1" step="1" value="0" aria-label="Slice (top = towards the head)" aria-orientation="vertical">
+          <span>feet</span><span class="mono" id="slice-val"></span>
+        </div>
+        <div class="cbar" id="cbar-box">
+          <span class="ctrl-label" id="cbar-label">SUV</span>
+          <div class="bar"><canvas id="cbar" width="14" height="256" aria-hidden="true"></canvas><div class="ticks" id="ticks"></div></div>
+        </div>
+      </div>
+      <div class="ctrls" id="display-ctrls">
+        <div class="ctrl"><span class="ctrl-label">Window (SUV)</span><div class="chips" id="win-chips"></div></div>
+        <div class="ctrl"><span class="ctrl-label">Colours</span><div class="chips" id="cmap-chips"></div></div>
+        <div class="ctrl"><span class="ctrl-label">Image</span><div class="chips" id="img-chips"></div></div>
+      </div>
+      <div class="readout" id="readout" aria-live="polite"></div>
+    </div>
+
+    <div class="panel">
+      <!-- step 1 -->
+      <div data-step="draw" class="panel">
+        <div class="tasks"><h2>Tasks</h2><ol>
+          <li class="intro" data-spot="scan-box,display-ctrls"><label><b>The image</b>
+            <ul><li>The simulated scan from Block C, standard reconstruction (3 iterations, 5 mm filter), zoomed in on the tumour (16 cm across).</li>
+              <li>The slider moves through the slices: head at the top on the axial, front at the top on the coronal. The tumour is in the right lower lobe.</li>
+              <li><b>PET on CT</b> helps you see where the lung ends.</li></ul></label></li>
+          <li class="intro" data-spot="tool-box"><label><b>Drawing</b>
+            <ul><li><b>Draw around</b>: hold and circle the tumour, release to fill. Circle again to add more.</li>
+              <li>The <b>eraser</b> trims the edge. <b>Undo</b>, or clear the slice and start again.</li></ul></label></li>
+          <li><input type="checkbox" id="pd1-1"><label for="pd1-1">Choose the window you would contour with. Draw around the tumour on <b>every slice where you see it</b>.</label></li>
+          <li><input type="checkbox" id="pd1-2"><label for="pd1-2">Write down the volume of your outline and the window you used.</label></li>
+          <li><input type="checkbox" id="pd1-3"><label for="pd1-3">Switch to another window and look at your outline. Would you have drawn it differently?</label></li>
+        </ol></div>
+        <div class="readout" id="my-vol"></div>
+        <div class="message big"><b>A hand-drawn PET edge moves with the window.</b> Next: let the computer draw it.</div>
+      </div>
+      <!-- step 2 -->
+      <div data-step="auto" class="panel" hidden>
+        <div class="tasks"><h2>Tasks</h2><ol>
+          <li class="intro" data-spot="method-box"><label><b>Five automatic methods</b>
+            <ul><li><b>41 % / 50 % of SUVmax</b>: everything connected to the hottest voxel and above that fraction of it (the EANM guideline's VOI41 and VOI50).</li>
+              <li><b>SUV 2.5</b>: everything connected and above SUV 2.5.</li>
+              <li><b>Adaptive</b>: the threshold depends on this tumour and its background: 0.3 × the mean of the hottest part (above 70 %) + the background around it.</li>
+              <li><b>Gradient</b>: no threshold. The edge is where the image falls off most steeply, searched along lines out from the hottest voxel.</li></ul></label></li>
+          <li><input type="checkbox" id="pd2-1"><label for="pd2-1">Predict first: which method will give the biggest volume, and which the smallest?</label></li>
+          <li><input type="checkbox" id="pd2-2"><label for="pd2-2">Press each method, look through the slices, and write down the volumes.</label></li>
+          <li><input type="checkbox" id="pd2-3"><label for="pd2-3">Tick <b>Show the expert outline</b>. Which method overlaps it best? And your own outline?</label></li>
+          <li><input type="checkbox" id="pd2-4"><label for="pd2-4">Look at <b>SUV 2.5</b> on the slices at the top and bottom of the tumour. What goes wrong, and why would it be worse in a liver or a brain tumour?</label></li>
+          <li class="extra"><input type="checkbox" id="pd2-5"><label for="pd2-5">Would you use one of these as the GTV? What would you do instead?</label></li>
+        </ol></div>
+        <div class="table-box"><table>
+          <thead><tr><th>Outline</th><th class="num">Threshold</th><th class="num">Volume</th><th class="num">Overlap with expert</th><th class="num">Overlap with yours</th></tr></thead>
+          <tbody id="method-table"></tbody></table>
+          <div class="note">Overlap = Dice: 1 = identical, 0 = none. Expert outline: the autoPET lesion outline, drawn on the hospital's own images (2 mm pixels), shown here on the 4 mm grid.</div></div>
+        <div class="message" data-show-from="pd2-4"><b>Same image, different volumes.</b>
+          <ul>
+            <li>A fixed SUV of 2.5 ignores the tumour and the background: it grows into anything warm next to the tumour, and in a liver (background about 2.5) or the brain it fails completely. TG211 lists it among the poorest performers.</li>
+            <li>The EANM guideline: VOI41 "corresponds best with the actual dimensions of the tumour, but only for higher tumour-to-background values and nonheterogeneous tracer uptakes".</li>
+            <li>Adaptive methods "need to be calibrated for each PET scanner and acquisition/processing protocol" (Zaidi et al., in TG211). The 0.3 here is only an example.</li>
+          </ul></div>
+        <div class="message" data-show-from="pd2-5"><b>In practice.</b>
+          <ul>
+            <li>In lung, guidelines contour the GTV on CT, with PET as a guide to what is tumour (for example tumour against collapsed lung).</li>
+            <li>Automatic PET outlines are a starting point that a physician checks and edits; practice varies between sites and disease sites.</li>
+            <li>TG211: always check a method on your own scanner and protocol before clinical use.</li>
+          </ul></div>
+        <div class="message big"><b>The method is the GTV.</b> Ask which method, and at which window, made the contour you are given.</div>
+      </div>
+      <!-- step 3 -->
+      <div data-step="recon" class="panel" hidden>
+        <div class="tasks"><h2>Tasks</h2><ol>
+          <li class="intro" data-spot="recon-box,method-box"><label><b>Another reconstruction</b>
+            <ul><li>The same data as in Block C. Change the iterations and the filter; the outline follows.</li>
+              <li>Nothing about the patient changes.</li></ul></label></li>
+          <li><input type="checkbox" id="pd3-1"><label for="pd3-1">Predict first: you switch from 3 iterations + 5 mm filter to 12 iterations without filter. Will the 41 % outline get bigger, smaller or stay the same?</label></li>
+          <li><input type="checkbox" id="pd3-2"><label for="pd3-2">Try it. Write down the SUVmax and the 41 % volume for the three settings in the table, and the SUV 2.5 volume.</label></li>
+          <li><input type="checkbox" id="pd3-3"><label for="pd3-3">Why did the 41 % volume change, when the tumour did not?</label></li>
+          <li class="extra"><input type="checkbox" id="pd3-4"><label for="pd3-4">The phantom from Block C, with one 41 % threshold for every sphere (table below). Which sphere sizes come out right?</label></li>
+        </ol></div>
+        <div class="table-box"><table>
+          <thead><tr><th>Reconstruction</th><th class="num">SUVmax</th><th class="num">41 % threshold</th><th class="num">41 % volume</th><th class="num">SUV 2.5 volume</th><th class="num">Gradient volume</th></tr></thead>
+          <tbody id="cd-table"></tbody></table>
+          <div class="note">Volumes in mL. The bold row is the reconstruction on screen.</div></div>
+        <div class="message" data-show-from="pd3-3"><b>The threshold follows the maximum.</b>
+          <ul>
+            <li>More iterations and no filter: a sharper, noisier image, so a higher SUVmax (one hot voxel).</li>
+            <li>41 % of a higher maximum is a higher threshold, so the outline shrinks, with no change in the patient.</li>
+            <li>A fixed SUV 2.5 moves the other way: a sharper edge and more noise change what lies above 2.5.</li>
+          </ul></div>
+        <div class="table-box" data-show-from="pd3-4"><table>
+          <thead><tr><th>Sphere</th><th class="num">True volume</th><th class="num">41 % volume</th><th class="num">Error</th></tr></thead>
+          <tbody id="ph-table"></tbody></table>
+          <div class="note">One fixed threshold is right for one size only: small spheres are blurred, so their maximum is low and their 41 % outline too big (TG211: "small volumes require higher thresholds").</div></div>
+        <div class="message big"><b>Change the reconstruction, change the GTV.</b> A PET contour comes with its scanner, its reconstruction and its method.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Simulated scan of a real patient: FDG-PET-CT-Lesions (autoPET), patient PETCT_7faf36a152, study of 14 June 2002 (Gatidis et al., Sci Data 2022;9:601;
+      TCIA, doi:10.7937/gkr0-xv29; CC BY 4.0). Expert outline: the autoPET lesion segmentation of this study (an expert lesion outline, not a radiotherapy GTV).
+      Simulated with tools/prep_pet.py (4.07 mm pixels, 3 mm slices, blur 6.5 mm, OSEM with 16 subsets).</span>
+    <span>VOI41/VOI50: Boellaard et al., EANM guideline v2.0, Eur J Nucl Med Mol Imaging 2015;42:328–54. Methods, adaptive formula (Nestle type), calibration and the SUV 2.5 results:
+      Hatt et al., AAPM TG211, Med Phys 2017;44:e1–e42.</span>
+  </footer>
+</div>
+
+<script src="pet_recon.js?v=e88d998c"></script>
+<script src="pet_view.js?v=0bde9340"></script>
+<script src="stepper.js?v=b8d2cbf4"></script>
+<script>window.WORKSHEET = "pet";</script>
+<script src="answers.js?v=cd24077b"></script>
+<script>
+(() => {
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const D = window.PET_RECON, PV = window.PetView;
+  if (!D || !PV) { document.querySelector(".bench").innerHTML = `<div class="message">The case data (pet_recon.js, pet_view.js) did not load. Keep them in the same folder as this page.</div>`; return; }
+  const P = D.phantom;
+  const pdims = { ns: P.n_slices, rows: P.rows, cols: P.cols, px: P.px_mm, dz: P.slice_mm };
+  const VOX = D.px_mm * D.px_mm * D.slice_mm / 1000;
+  // this page shows a crop around the tumour (bigger on screen for drawing): set once the outline is decoded
+  let NS, R, C, NA, NV, dims, CROP;
+  const FILTERS = [0, 3, 5, 7];
+  const jobs = D.iters.map(it => PV.decode(D.pet[it]).then(u => ["pet", it, PV.suv(u, D.vmax)]))
+    .concat(D.iters.map(it => PV.decode(P.pet[it]).then(u => ["ph", it, PV.suv(u, P.vmax)])))
+    .concat([PV.decode(D.ct).then(u => ["ct", 0, PV.hu(u)]), PV.decode(D.lesion).then(u => ["les", 0, u])]);
+  Promise.all(jobs).then(res => {
+  const RAW = {}, PRAW = {}; let CT = null, EXPERT = null;
+  for (const [t, k, a] of res) { if (t === "pet") RAW[k] = a; else if (t === "ph") PRAW[k] = a; else if (t === "ct") CT = a; else EXPERT = a.map(x => x ? 1 : 0); }
+  {   // crop: the tumour's slices + 8 each side, and 20 voxels (8 cm) around its centre in-plane
+    const FA = D.rows * D.cols; let n = 0, sr = 0, sc = 0;
+    for (let i = 0; i < EXPERT.length; i++) if (EXPERT[i]) { n++; sr += Math.floor(i / D.cols) % D.rows; sc += i % D.cols; }
+    const half = 20, cr = Math.round(sr / n), cc = Math.round(sc / n);
+    const k0 = Math.max(0, D.lesion_slices[0] - 8), k1 = Math.min(D.n_slices - 1, D.lesion_slices[1] + 8);
+    const r0 = Math.max(0, Math.min(D.rows - 2 * half - 1, cr - half)), c0 = Math.max(0, Math.min(D.cols - 2 * half - 1, cc - half));
+    CROP = { k0, r0, c0 };
+    NS = k1 - k0 + 1; R = Math.min(2 * half + 1, D.rows); C = Math.min(2 * half + 1, D.cols); NA = R * C; NV = NA * NS;
+    dims = { ns: NS, rows: R, cols: C, px: D.px_mm, dz: D.slice_mm };
+    const crop = a => { const o = new a.constructor(NV); for (let k = 0; k < NS; k++) for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) o[k * NA + r * C + c] = a[(k + k0) * FA + (r + r0) * D.cols + c + c0]; return o; };
+    for (const k of Object.keys(RAW)) RAW[k] = crop(RAW[k]);
+    CT = crop(CT); EXPERT = crop(EXPERT);
+  }
+
+  // ---------- segmentation ----------
+  // search box: the expert outline's bounding box + 10 voxels in-plane (4 cm) and 6 slices (1.8 cm)
+  let bb = [NS, 0, R, 0, C, 0];
+  for (let i = 0; i < NV; i++) if (EXPERT[i]) {
+    const k = Math.floor(i / NA), r = Math.floor(i / C) % R, c = i % C;
+    bb = [Math.min(bb[0], k), Math.max(bb[1], k), Math.min(bb[2], r), Math.max(bb[3], r), Math.min(bb[4], c), Math.max(bb[5], c)];
+  }
+  const BOX = [Math.max(0, bb[0] - 6), Math.min(NS - 1, bb[1] + 6), Math.max(0, bb[2] - 10), Math.min(R - 1, bb[3] + 10), Math.max(0, bb[4] - 10), Math.min(C - 1, bb[5] + 10)];
+  const inBox = (k, r, c) => k >= BOX[0] && k <= BOX[1] && r >= BOX[2] && r <= BOX[3] && c >= BOX[4] && c <= BOX[5];
+  function seedOf(a) { let m = -1, s = 0; for (let i = 0; i < NV; i++) if (EXPERT[i] && a[i] > m) { m = a[i]; s = i; } return [s, m]; }
+  function grow(a, seed, T, dimsG, box) {      // 6-connected region from the seed, voxels >= T, inside the box
+    const nA = dimsG.rows * dimsG.cols, nV = nA * dimsG.ns, m = new Uint8Array(nV), q = [seed];
+    if (a[seed] < T) return m;
+    m[seed] = 1;
+    while (q.length) {
+      const i = q.pop(), k = Math.floor(i / nA), r = Math.floor(i / dimsG.cols) % dimsG.rows, c = i % dimsG.cols;
+      for (const [dk, dr, dc] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) {
+        const kk = k + dk, rr = r + dr, cc = c + dc;
+        if (kk < 0 || rr < 0 || cc < 0 || kk >= dimsG.ns || rr >= dimsG.rows || cc >= dimsG.cols || !box(kk, rr, cc)) continue;
+        const j = kk * nA + rr * dimsG.cols + cc;
+        if (!m[j] && a[j] >= T) { m[j] = 1; q.push(j); }
+      }
+    }
+    return m;
+  }
+  function dilate(m, n) {
+    let a = m;
+    for (let t = 0; t < n; t++) {
+      const b = a.slice();
+      for (let i = 0; i < NV; i++) if (a[i]) {
+        const k = Math.floor(i / NA), r = Math.floor(i / C) % R, c = i % C;
+        if (k > 0) b[i - NA] = 1; if (k < NS - 1) b[i + NA] = 1; if (r > 0) b[i - C] = 1; if (r < R - 1) b[i + C] = 1; if (c > 0) b[i - 1] = 1; if (c < C - 1) b[i + 1] = 1;
+      }
+      a = b;
+    }
+    return a;
+  }
+  // directions for the gradient method (Fibonacci sphere)
+  const DIRS = [];
+  for (let i = 0, n = 240; i < n; i++) { const z = 1 - 2 * (i + 0.5) / n, rr = Math.sqrt(1 - z * z), ph = i * Math.PI * (3 - Math.sqrt(5)); DIRS.push([z, rr * Math.cos(ph), rr * Math.sin(ph)]); }
+  function sample(a, k, r, c) {               // trilinear, in voxel units
+    if (k < 0 || r < 0 || c < 0 || k > NS - 1 || r > R - 1 || c > C - 1) return 0;
+    const k0 = Math.min(NS - 2, Math.floor(k)), r0 = Math.min(R - 2, Math.floor(r)), c0 = Math.min(C - 2, Math.floor(c)), fk = k - k0, fr = r - r0, fc = c - c0;
+    let s = 0;
+    for (const [dk, wk] of [[0, 1 - fk], [1, fk]]) for (const [dr, wr] of [[0, 1 - fr], [1, fr]]) for (const [dc, wc] of [[0, 1 - fc], [1, fc]])
+      s += wk * wr * wc * a[(k0 + dk) * NA + (r0 + dr) * C + c0 + dc];
+    return s;
+  }
+  function gradientSeg(a, seed, mx) {
+    const k0 = Math.floor(seed / NA), r0 = Math.floor(seed / C) % R, c0 = seed % C, step = 0.5, rad = [];
+    for (const [dz, dy, dx] of DIRS) {
+      const raw = [];
+      for (let t = 0; t <= 60; t += step) raw.push(sample(a, k0 + dz * t / D.slice_mm, r0 + dy * t / D.px_mm, c0 + dx * t / D.px_mm));
+      const prof = raw.map((_, i) => { let s = 0, n = 0; for (let j = Math.max(0, i - 4); j <= Math.min(raw.length - 1, i + 4); j++) { s += raw[j]; n++; } return s / n; });   // 4 mm smoothing
+      let end = prof.findIndex(v => v < 0.1 * mx); if (end < 0) end = prof.length - 1;
+      let start = prof.findIndex(v => v < 0.8 * prof[0]); if (start < 0 || start > end) start = 0;    // search beyond the hot core
+      let best = 0, at = end;
+      for (let i = Math.max(2, start); i < end - 2; i++) { const g = (prof[i - 2] - prof[i + 2]) / (4 * step); if (g > best) { best = g; at = i; } }
+      rad.push(at * step);
+    }
+    // smooth the edge: median of each direction and its nearest neighbours
+    const nb = DIRS.map(d => DIRS.map((e, j) => [d[0] * e[0] + d[1] * e[1] + d[2] * e[2], j]).sort((x, y) => y[0] - x[0]).slice(0, 7).map(x => x[1]));
+    const rs = rad.slice();
+    for (let j = 0; j < DIRS.length; j++) { const v7 = nb[j].map(q => rs[q]).sort((x, y) => x - y); rad[j] = v7[3]; }
+    const m = new Uint8Array(NV);
+    for (let k = BOX[0]; k <= BOX[1]; k++) for (let r = BOX[2]; r <= BOX[3]; r++) for (let c = BOX[4]; c <= BOX[5]; c++) {
+      const z = (k - k0) * D.slice_mm, y = (r - r0) * D.px_mm, x = (c - c0) * D.px_mm, d = Math.hypot(z, y, x);
+      if (d < 1e-6) { m[k * NA + r * C + c] = 1; continue; }
+      let bi = 0, bd = -2;
+      for (let j = 0; j < DIRS.length; j++) { const p = (DIRS[j][0] * z + DIRS[j][1] * y + DIRS[j][2] * x) / d; if (p > bd) { bd = p; bi = j; } }
+      if (d <= rad[bi]) m[k * NA + r * C + c] = 1;
+    }
+    return m;
+  }
+  const METHODS = [
+    ["p41", "41 % of SUVmax"], ["p50", "50 % of SUVmax"], ["s25", "SUV 2.5"], ["adapt", "Adaptive"], ["grad", "Gradient"],
+  ];
+  const segCache = new Map(), imgCache = new Map();
+  const img = (it, f) => { const k = it + "/" + f; if (!imgCache.has(k)) imgCache.set(k, PV.gauss3(RAW[it], dims, f)); return imgCache.get(k); };
+  function segment(it, f) {
+    const key = it + "/" + f;
+    if (segCache.has(key)) return segCache.get(key);
+    const a = img(it, f), [seed, mx] = seedOf(a), out = { max: mx, masks: {}, thr: {} };
+    const g = T => grow(a, seed, T, dims, inBox);
+    out.thr.p41 = 0.41 * mx; out.masks.p41 = g(out.thr.p41);
+    out.thr.p50 = 0.5 * mx; out.masks.p50 = g(out.thr.p50);
+    out.thr.s25 = 2.5; out.masks.s25 = g(2.5);
+    const r70 = g(0.7 * mx); let s = 0, n = 0; for (let i = 0; i < NV; i++) if (r70[i]) { s += a[i]; n++; }
+    const mean70 = s / n, shell = (() => { const o = dilate(out.masks.p41, 4), i2 = dilate(out.masks.p41, 2); return o.map((v, i) => v && !i2[i] ? 1 : 0); })();
+    let bs = 0, bn = 0; for (let i = 0; i < NV; i++) if (shell[i]) { bs += a[i]; bn++; }
+    out.bg = bs / bn; out.thr.adapt = 0.3 * mean70 + out.bg; out.masks.adapt = g(out.thr.adapt);
+    out.masks.grad = gradientSeg(a, seed, mx); out.thr.grad = NaN;
+    segCache.set(key, out);
+    return out;
+  }
+  const vol = m => { let n = 0; for (let i = 0; i < m.length; i++) n += m[i]; return n * VOX; };
+  const dice = (a, b) => { let x = 0, sa = 0, sb = 0; for (let i = 0; i < a.length; i++) { x += a[i] & b[i]; sa += a[i]; sb += b[i]; } return sa + sb ? 2 * x / (sa + sb) : NaN; };
+  const f2 = x => isFinite(x) ? x.toFixed(2) : "–", f1 = x => isFinite(x) ? x.toFixed(1) : "–";
+
+  // ---------- viewer ----------
+  const v = PV.create({ els: { canvas: $("cv"), viewer: $("viewer"), tag: $("tag"), slider: $("slice"), sliceBox: $("slice-box"), sliceVal: $("slice-val"),
+    cbarBox: $("cbar-box"), cbar: $("cbar"), ticks: $("ticks"), cbarLabel: $("cbar-label"), readout: $("readout") }, dims, showCorLine: false });
+  v.st.slice = D.start - CROP.k0; v.st.ct = CT; v.st.win = 10;
+  const st = { step: "draw", it: D.default_iter, f: D.default_filter, method: "p41", tool: "lasso", showExpert: false, showMine: true,
+    mine: new Uint8Array(NV), undo: Array.from({ length: NS }, () => []) };
+  const COL = { mine: "#4cb4d0", method: "#f09a3e", expert: "#ffffff" };
+  const sliceOf = (m, k) => m.subarray(k * NA, (k + 1) * NA);
+  v.overlay = (ctx, g) => {
+    if (g.view !== "axial") return;
+    const k = v.st.slice;
+    if (st.step !== "draw") {
+      const seg = segment(st.it, st.f);
+      PV.outline(ctx, sliceOf(seg.masks[st.method], k), R, C, g.sx, g.sy, COL.method, [], true);
+      if (st.showExpert) PV.outline(ctx, sliceOf(EXPERT, k), R, C, g.sx, g.sy, COL.expert, [7, 5], false);
+    }
+    if (st.step === "draw" || st.showMine) PV.outline(ctx, sliceOf(st.mine, k), R, C, g.sx, g.sy, COL.mine, [], st.step === "draw");
+    if (lasso && lasso.length > 1) {
+      ctx.strokeStyle = COL.mine; ctx.lineWidth = 2; ctx.beginPath();
+      lasso.forEach(([r, c], i) => i ? ctx.lineTo(c * g.sx, r * g.sy) : ctx.moveTo(c * g.sx, r * g.sy)); ctx.stroke();
+    }
+  };
+  v.afterDraw = () => numbers();
+
+  // ---------- drawing (step 1) ----------
+  let lasso = null, drawing = false;
+  function pushUndo() { const u = st.undo[v.st.slice]; u.push(sliceOf(st.mine, v.st.slice).slice()); if (u.length > 30) u.shift(); }
+  function erase(r, c) {
+    const m = sliceOf(st.mine, v.st.slice), rad = 1.2;
+    for (let y = Math.floor(r - rad); y <= Math.ceil(r + rad); y++) for (let x = Math.floor(c - rad); x <= Math.ceil(c + rad); x++)
+      if (y >= 0 && x >= 0 && y < R && x < C && (y + 0.5 - r) ** 2 + (x + 0.5 - c) ** 2 <= rad * rad) m[y * C + x] = 0;
+  }
+  function fill(pts) {
+    const m = sliceOf(st.mine, v.st.slice), rs = pts.map(p => p[0]), cs = pts.map(p => p[1]);
+    for (let r = Math.max(0, Math.floor(Math.min(...rs))); r <= Math.min(R - 1, Math.ceil(Math.max(...rs))); r++)
+      for (let c = Math.max(0, Math.floor(Math.min(...cs))); c <= Math.min(C - 1, Math.ceil(Math.max(...cs))); c++) {
+        const y = r + 0.5, x = c + 0.5; let inside = false;
+        for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+          const [yi, xi] = pts[i], [yj, xj] = pts[j];
+          if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+        }
+        if (inside) m[r * C + c] = 1;
+      }
+  }
+  v.pointer = (type, p) => {
+    if (st.step !== "draw" || v.st.view !== "axial") return false;
+    if (type === "down") { drawing = true; pushUndo(); if (st.tool === "lasso") lasso = [p]; else erase(p[0], p[1]); v.draw(); }
+    else if (type === "move") { if (!drawing) return true; if (lasso) lasso.push(p); else erase(p[0], p[1]); v.draw(); }
+    else if (type === "up" || type === "cancel") { if (!drawing) return true; drawing = false; if (lasso && lasso.length > 2 && type === "up") fill(lasso); lasso = null; v.draw(); }
+    return true;
+  };
+  PV.chips("tool-chips", [["lasso", "Draw around"], ["erase", "Eraser"]].map(([k, l]) => ({ key: k, label: l })), st.tool, it => { st.tool = it.key; });
+  $("undo").addEventListener("click", () => { const u = st.undo[v.st.slice]; if (u.length) { sliceOf(st.mine, v.st.slice).set(u.pop()); v.draw(); } });
+  $("clear").addEventListener("click", () => { pushUndo(); sliceOf(st.mine, v.st.slice).fill(0); v.draw(); });
+
+  // ---------- chips ----------
+  PV.chips("win-chips", [5, 10, 20].map(w => ({ key: w, label: `0–${w}` })), v.st.win, it => { v.st.win = it.key; v.draw(); });
+  PV.toggle("cmap-chips", { off: "Grey (inverted)", on: "Colour", value: v.st.cmap === "hot", onChange: on => { v.st.cmap = on ? "hot" : "grey"; v.draw(); } });
+  PV.chips("img-chips", [["pet", "PET"], ["fused", "PET on CT"]].map(([k, l]) => ({ key: k, label: l })), "pet", it => { v.st.img = it.key; v.draw(); });
+  PV.chips("method-chips", METHODS.map(([k, l]) => ({ key: k, label: l })), st.method, it => { st.method = it.key; v.draw(); });
+  PV.chips("iter-chips", D.iters.map(it => ({ key: it, label: String(it) })), st.it, x => { st.it = x.key; recon(); });
+  PV.chips("filt-chips", FILTERS.map(f => ({ key: f, label: f ? f + " mm" : "None" })), st.f, x => { st.f = x.key; recon(); });
+  $("show-expert").addEventListener("change", e => { st.showExpert = e.target.checked; v.draw(); });
+  $("show-mine").addEventListener("change", e => { st.showMine = e.target.checked; v.draw(); });
+  function recon() { v.st.pet = img(st.it, st.f); v.st.label = `${st.it} it · ${st.f ? st.f + " mm" : "no filter"}`; v.draw(); }
+
+  // ---------- numbers ----------
+  const perSlice = m => { const ks = []; for (let k = 0; k < NS; k++) if (sliceOf(m, k).some(x => x)) ks.push(k + 1); return ks.length ? `drawn on ${ks.length} slice${ks.length > 1 ? "s" : ""}` : "nothing drawn yet"; };
+  function numbers() {
+    const mv = vol(st.mine);
+    $("my-vol").innerHTML = `Your outline: <b class="mono">${mv.toFixed(1)} mL</b> <span class="note">(${perSlice(st.mine)}; window 0–${v.st.win})</span>`;
+    if (st.step === "auto" || st.step === "recon") {
+      const seg = segment(st.it, st.f);
+      const rows = METHODS.map(([k, l]) => {
+        const m = seg.masks[k];
+        return `<tr${k === st.method ? ' class="on"' : ""}><td><span class="key" style="background:${COL.method}"></span>${l}</td><td class="num">${isFinite(seg.thr[k]) ? "SUV " + f2(seg.thr[k]) : "–"}</td><td class="num">${f1(vol(m))} mL</td><td class="num">${f2(dice(m, EXPERT))}</td><td class="num">${mv ? f2(dice(m, st.mine)) : "–"}</td></tr>`;
+      });
+      rows.push(`<tr><td><span class="key" style="background:${COL.mine}"></span>Yours</td><td class="num">window 0–${v.st.win}</td><td class="num">${f1(mv)} mL</td><td class="num">${mv ? f2(dice(st.mine, EXPERT)) : "–"}</td><td class="num">–</td></tr>`);
+      rows.push(`<tr><td><span class="key" style="background:var(--guide)"></span>Expert outline</td><td class="num">–</td><td class="num">${f1(vol(EXPERT))} mL</td><td class="num">–</td><td class="num">${mv ? f2(dice(EXPERT, st.mine)) : "–"}</td></tr>`);
+      $("method-table").innerHTML = rows.join("");
+    }
+    if (st.step === "recon") {
+      const SET = [[1, 7, "1 iteration, 7 mm filter"], [3, 5, "3 iterations, 5 mm filter"], [12, 0, "12 iterations, no filter"]];
+      if (!SET.some(([i, f]) => i === st.it && f === st.f)) SET.push([st.it, st.f, `${st.it} iterations, ${st.f ? st.f + " mm filter" : "no filter"} (on screen)`]);
+      $("cd-table").innerHTML = SET.map(([i, f, l]) => {
+        const s = segment(i, f);
+        return `<tr${i === st.it && f === st.f ? ' class="on"' : ""}><td>${l}</td><td class="num">${f2(s.max)}</td><td class="num">${f2(s.thr.p41)}</td><td class="num">${f1(vol(s.masks.p41))}</td><td class="num">${f1(vol(s.masks.s25))}</td><td class="num">${f1(vol(s.masks.grad))}</td></tr>`;
+      }).join("");
+      phantomTable();
+    }
+  }
+  function phantomTable() {
+    const a = PV.gauss3(PRAW[st.it], pdims, st.f), PA = P.rows * P.cols, PVOX = P.px_mm * P.px_mm * P.slice_mm / 1000;
+    $("ph-table").innerHTML = P.spheres.map(s => {
+      const rad = s.d_mm / 2 + 2, near = (k, r, c) => ((k - P.centre_slice) * P.slice_mm) ** 2 + ((r - s.row) * P.px_mm) ** 2 + ((c - s.col) * P.px_mm) ** 2 <= (s.d_mm / 2 + 12) ** 2;
+      let mx = 0, seed = 0;
+      for (let k = 0; k < P.n_slices; k++) for (let r = 0; r < P.rows; r++) for (let c = 0; c < P.cols; c++) {
+        if (((k - P.centre_slice) * P.slice_mm) ** 2 + ((r - s.row) * P.px_mm) ** 2 + ((c - s.col) * P.px_mm) ** 2 > rad * rad) continue;
+        const i = k * PA + r * P.cols + c; if (a[i] > mx) { mx = a[i]; seed = i; }
+      }
+      const m = grow(a, seed, 0.41 * mx, pdims, near);
+      let n = 0; for (let i = 0; i < m.length; i++) n += m[i];
+      const tv = 4 / 3 * Math.PI * (s.d_mm / 20) ** 3, mv = n * PVOX, err = (mv / tv - 1) * 100;
+      return `<tr><td>${s.d_mm} mm</td><td class="num">${tv.toFixed(1)} mL</td><td class="num">${mv.toFixed(1)} mL</td><td class="num">${err >= 0 ? "+" : "−"}${Math.abs(err).toFixed(0)} %</td></tr>`;
+    }).join("");
+  }
+
+  // ---------- steps ----------
+  const STEPS = ["draw", "auto", "recon"], NAMES = { draw: "draw", auto: "automatic methods", recon: "another reconstruction" };
+  const steppers = {};
+  function showFrom(li) {
+    const box = li.closest(".tasks"), items = [...box.querySelectorAll(":scope > ol > li")], pos = items.indexOf(li);
+    box.closest("[data-step]").querySelectorAll("[data-show-from]").forEach(el => {
+      const at = items.findIndex(x => x.querySelector("#" + el.dataset.showFrom));
+      el.hidden = pos < at;
+    });
+  }
+  STEPS.forEach((step, si) => {
+    const box = document.querySelector(`[data-step="${step}"] .tasks`);
+    steppers[step] = Stepper.setup(box, {
+      key: "taskpos-petcontour-" + step, sticky: false, onShow: showFrom,
+      prev: si > 0 ? () => { location.hash = STEPS[si - 1]; } : null,
+      next: si < STEPS.length - 1 ? () => { location.hash = STEPS[si + 1]; window.scrollTo({ top: 0 }); } : () => { location.href = "pet.html"; },
+      nextLabel: si < STEPS.length - 1 ? `Next: ${NAMES[STEPS[si + 1]]} →` : "Done: back to all blocks",
+    });
+  });
+  function show(step) {
+    if (!STEPS.includes(step)) step = "draw";
+    st.step = step;
+    document.querySelectorAll("[data-step]").forEach(el => { el.hidden = el.dataset.step !== step; });
+    document.querySelectorAll("nav a").forEach(a => a.setAttribute("aria-current", a.dataset.tab === step ? "page" : "false"));
+    $("tool-box").hidden = step !== "draw";
+    $("method-box").hidden = step === "draw";
+    $("recon-box").hidden = step !== "recon";
+    if (step !== "recon") { st.it = D.default_iter; st.f = D.default_filter; PV.press("iter-chips", st.it); PV.press("filt-chips", st.f); }
+    $("viewer").style.cursor = step === "draw" ? "crosshair" : "";
+    recon();
+    Stepper.clear();
+    if (steppers[step]) steppers[step].refresh();
+  }
+  window.addEventListener("hashchange", () => show(location.hash.slice(1)));
+  show(location.hash.slice(1));
+  }).catch(e => { console.error(e); document.querySelector(".bench").innerHTML = `<div class="message">The images could not be decoded. Try another browser.</div>`; });
+})();
+</script>
+
+</body>
+</html>

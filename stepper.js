@@ -1,6 +1,7 @@
 /* Shared by the three hands-on pages: show the tasks one at a time, with Previous / Next.
  *
- *   Stepper.setup(box, { key, sticky, prev, next, nextLabel })
+ *   Stepper.setup(box, { key, sticky, prev, next, nextLabel })   (Previous / Next sit under the heading, above the task,
+ *                                                                so they stay put whatever the length of the task text)
  *     box        a .tasks element: an <h2> and an <ol> of <li>.
  *                <li class="intro" data-spot="id1,id2"> is a "start here" card: it is not numbered, and it dims the
  *                page and scrolls to (and outlines) the elements it names.
@@ -11,6 +12,7 @@
  *     prev/next  called on Previous at the first item / Next at the last item (null = disabled / nothing).
  *     nextLabel  label of Next at the last item.
  *     onShow     called with the shown <li> each time the card changes (also on page load).
+ *   page.html?task=<task id> (the links on My answers) opens the step that holds that task and shows the task.
  *   Stepper.clear()  remove the outline and the dimming (call when the page switches tab).
  *
  * Uses the page's colour tokens: --line --guide --teal --orange --bg.
@@ -30,8 +32,15 @@
 .tasks.stepper li.intro ul { margin: 4px 0 0; padding-left: 22px; display: flex; flex-direction: column; gap: 2px; }
 .tasks.stepper li.intro ul li { display: list-item; font-size: 16px; min-height: 0; }
 .tasks.stepper li.intro ul li::before { content: none; }
-.step-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 10px; }
+.step-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
 .step-nav .dots { display: flex; gap: 6px; align-items: center; }
+.step-nav button { white-space: nowrap; }
+@media (max-width: 600px) {   /* phone: buttons on one row, dots below, so the height never changes */
+  .step-nav { display: grid; grid-template-columns: auto auto; grid-template-areas: "prev next" "dots dots"; flex-wrap: nowrap; }
+  .step-nav [data-prev] { grid-area: prev; justify-self: start; }
+  .step-nav [data-next] { grid-area: next; justify-self: end; }
+  .step-nav .dots { grid-area: dots; justify-content: center; }
+}
 .step-nav .dots button { width: 12px; height: 12px; padding: 0; border-radius: 50%; background: var(--line); border: 0; }
 .step-nav .dots button.seen { background: var(--guide); }
 .step-nav .dots button[aria-current="true"] { background: var(--teal); transform: scale(1.25); }
@@ -48,6 +57,15 @@
     get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } },
     set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* storage blocked */ } },
   };
+
+  // ?task=<id>: switch to the step (tab) that holds this task. The n-th .tasks box belongs to the n-th [data-tab] link.
+  const wantId = new URLSearchParams(location.search).get("task");
+  const wantEl = wantId && document.getElementById(wantId);
+  if (wantEl) {
+    const boxes = [...document.querySelectorAll(".tasks")], tabs = [...document.querySelectorAll("[data-tab]")];
+    const tab = boxes.length === tabs.length ? tabs[boxes.indexOf(wantEl.closest(".tasks"))] : null;
+    history.replaceState(null, "", location.pathname + (tab ? "#" + tab.dataset.tab : location.hash));   // drop ?task, so a reload does not jump again
+  }
 
   function clear() { document.querySelectorAll(".spot").forEach(e => e.classList.remove("spot")); dim.hidden = true; }
 
@@ -77,7 +95,7 @@
     if (!title) { title = document.createElement("h2"); box.prepend(title); }
     const nav = document.createElement("div"); nav.className = "step-nav";
     nav.innerHTML = `<button type="button" class="quiet" data-prev>← Previous</button><span class="dots"></span><button type="button" class="primary" data-next></button>`;
-    box.appendChild(nav);
+    title.after(nav);
     const dots = nav.querySelector(".dots"), prev = nav.querySelector("[data-prev]"), next = nav.querySelector("[data-next]");
     items.forEach((_, i) => {
       const d = document.createElement("button"); d.type = "button"; d.setAttribute("aria-label", "Item " + (i + 1));
@@ -101,7 +119,14 @@
     }
     prev.addEventListener("click", () => { if (pos > 0) go(pos - 1); else if (opt.prev) { clear(); opt.prev(); } });
     next.addEventListener("click", () => { if (pos < n - 1) go(pos + 1); else if (opt.next) { clear(); opt.next(); } });
+    const wantPos = wantEl ? items.findIndex(li => li.contains(wantEl)) : -1;
+    if (wantPos >= 0) pos = wantPos;
     go(pos, true);
+    if (wantPos >= 0) setTimeout(() => {
+      go(wantPos);
+      const ws = items[wantPos].querySelector(".ws") || items[wantPos];
+      ws.classList.add("spot"); ws.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }, 400);
     return { go: (i, quiet) => go(i, quiet), refresh: () => go(pos, true) };
   }
 

@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Reconstruction and Lesion Size</title>
+</head>
+<body>
+
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* PET Block C. Same shell as Blocks A and B. The simulated scan of the Block A patient (tools/prep_pet.py), reconstructed
+   with 1-12 OSEM iterations; the post-filter is applied here. The NEMA IEC phantom through the same scanner. */
+:root {
+  --bg: #ffffff; --surface: #f4f6f9; --line: #dde2ea; --ink: #1a1a1a; --muted: #5f6672; --guide: #9aa0a6;
+  --teal: #2a93b0; --red: #e5484d; --orange: #e0821a; --green: #2f9e5b; --chip: #eef1f5; --chip-on: #1a1a1a; --chip-on-fg: #ffffff;
+  --font: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  --mono: Consolas, "SF Mono", Menlo, "Liberation Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14171c; --surface: #1c2027; --line: #2e3440; --ink: #e9ecf1; --muted: #a2aab7; --guide: #5f6773;
+    --teal: #4cb4d0; --red: #f2696d; --orange: #f09a3e; --green: #4cc27e; --chip: #232832; --chip-on: #e9ecf1; --chip-on-fg: #14171c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14171c; --surface: #1c2027; --line: #2e3440; --ink: #e9ecf1; --muted: #a2aab7; --guide: #5f6773;
+  --teal: #4cb4d0; --red: #f2696d; --orange: #f09a3e; --green: #4cc27e; --chip: #232832; --chip-on: #e9ecf1; --chip-on-fg: #14171c;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 32px;
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+header { display: flex; flex-direction: column; gap: 4px; }
+.back { align-self: flex-start; text-decoration: none; color: var(--ink); background: var(--chip); border: 1px solid var(--line); border-radius: 8px; padding: 4px 12px; font-size: 14px; font-weight: bold; }
+.back:hover { border-color: var(--guide); }
+.eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-size: 28px; line-height: 1.15; margin: 0; text-wrap: balance; }
+h2 { font-size: 16px; margin: 0; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); max-width: 72ch; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+nav { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid var(--line); }
+nav a { text-decoration: none; color: var(--muted); padding: 8px 12px; border-bottom: 3px solid transparent; font-weight: bold; margin-bottom: -1px; }
+nav a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--teal); }
+nav a:hover { color: var(--ink); }
+.step-no { font-family: var(--mono); color: var(--teal); margin-right: 6px; }
+.bench { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 880px) { .bench { grid-template-columns: minmax(0, 1fr); } }
+@media (min-width: 881px) { .bench { align-items: stretch; } .bench > .panel > [data-step] > .tasks { flex: 0 0 auto; } }
+.figure, .panel { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.viewer-row { display: grid; grid-template-columns: minmax(0, 1fr) 62px 70px; /* fixed side columns: the image must not move when a label changes */ gap: 10px; align-items: stretch; max-width: 640px; }
+.viewer { position: relative; background: #000000; border-radius: 10px; overflow: hidden; width: 100%; align-self: start; }
+.viewer.light { background: #ffffff; outline: 1px solid var(--line); }
+.viewer canvas { display: block; width: auto; height: auto; max-width: 100%; max-height: 62vh; margin: 0 auto; touch-action: none; cursor: crosshair; }
+.viewer .tag { position: absolute; left: 10px; top: 8px; font-size: 13px; font-weight: bold; pointer-events: none; color: #ffffff; text-shadow: 0 1px 2px #000000; }
+.viewer.light .tag { color: #1a1a1a; text-shadow: none; }
+.viewer .side { position: absolute; top: 50%; font-size: 12px; font-weight: bold; pointer-events: none; color: #c8ccd2; }
+.viewer.light .side { color: #5f6672; }
+.viewer .side-r { left: 8px; } .viewer .side-l { right: 8px; }
+.vslider { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+.vslider input { writing-mode: vertical-lr; direction: rtl; flex: 1; min-height: 120px; width: 26px; margin: 0; accent-color: var(--teal); }
+.vslider .mono { font-size: 13px; color: var(--ink); white-space: nowrap; }
+.cbar { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+.cbar .bar { position: relative; flex: 1; min-height: 120px; display: flex; gap: 4px; }
+.cbar canvas { width: 14px; height: 100%; border: 1px solid var(--line); border-radius: 3px; }
+.cbar .ticks { display: flex; flex-direction: column; justify-content: space-between; font-family: var(--mono); color: var(--ink); font-size: 12px; white-space: nowrap; }
+.ctrls { display: flex; flex-wrap: wrap; gap: 10px 22px; max-width: 640px; }
+.ctrl { display: flex; flex-direction: column; gap: 6px; }
+.ctrl-label { font-size: 13px; font-weight: bold; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+button { font: inherit; font-size: 14px; color: var(--ink); background: var(--chip); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; cursor: pointer; }
+button:hover { border-color: var(--guide); }
+button[aria-pressed="true"] { background: var(--chip-on); color: var(--chip-on-fg); border-color: var(--chip-on); }
+button.primary { background: var(--teal); color: #ffffff; border-color: var(--teal); font-weight: bold; border-radius: 8px; padding: 7px 14px; }
+button.quiet { border-radius: 8px; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button:focus-visible, input:focus-visible, nav a:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.readout { max-width: 640px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; font-size: 14.5px; display: flex; flex-direction: column; gap: 2px; min-height: 3.4em; }
+.readout b.mono { font-size: 15.5px; }
+.cond { max-width: 640px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }
+.tasks { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.tasks ol { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; counter-reset: task; }
+.tasks li { display: grid; grid-template-columns: 22px 26px minmax(0, 1fr); gap: 4px; align-items: start; font-size: 14.5px; }
+.tasks li::before { counter-increment: task; content: counter(task) "."; font-family: var(--mono); color: var(--teal); font-weight: bold; padding-top: 1px; grid-column: 2; grid-row: 1; }
+.tasks li > input { grid-column: 1; grid-row: 1; width: 17px; height: 17px; margin: 2px 0 0; accent-color: var(--teal); cursor: pointer; }
+.tasks li > label { grid-column: 3; grid-row: 1; cursor: pointer; }
+.tasks li.extra > label::before { content: "Bonus question · "; color: var(--teal); font-weight: bold; }
+.tasks li > .after { grid-column: 2 / -1; }
+.table-box { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 13px; color: var(--muted); font-weight: bold; }
+td.num, th.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+tr.on td { font-weight: bold; }
+.message { background: var(--surface); border-radius: 10px; padding: 12px 14px; font-size: 14.5px; }
+.message ul { margin: 6px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 3px; }
+.message.big { border-left: 4px solid var(--teal); font-size: 16px; }
+.note { font-size: 12.5px; color: var(--muted); }
+footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+@media (prefers-reduced-motion: no-preference) { button { transition: background .12s, color .12s, border-color .12s; } }
+.charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 520px) { .charts { grid-template-columns: minmax(0, 1fr); } }
+.chart { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px 4px; min-width: 0; }
+.chart h3 { font-size: 13px; margin: 0 0 2px; color: var(--muted); }
+td.ok { color: var(--green); font-weight: bold; }
+td.bad { color: var(--red); font-weight: bold; }
+</style>
+
+<div class="wrap">
+  <header>
+    <a class="back" href="pet.html">← All blocks</a>
+    <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · PET · Block C</div>
+    <h1>Reconstruction and lesion size</h1>
+    <p class="lede">The scanner does not take a picture: it counts photon pairs, and a computer turns the counts into an image.
+      How it does that, and how big the tumour is, both change the SUV. Same simulated scan as Block B.</p>
+  </header>
+
+  <nav aria-label="Steps">
+    <a href="#iter" data-tab="iter"><span class="step-no">1</span>Iterations and filter</a>
+    <a href="#size" data-tab="size"><span class="step-no">2</span>Lesion size</a>
+  </nav>
+
+  <section class="bench">
+    <div class="figure">
+      <div class="cond" id="recon-box">
+        <div class="ctrl"><span class="ctrl-label">Iterations (OSEM, 16 subsets)</span><div class="chips" id="iter-chips"></div></div>
+        <div class="ctrl"><span class="ctrl-label">Post-filter (Gaussian, FWHM)</span><div class="chips" id="filt-chips"></div></div>
+      </div>
+      <div class="ctrls" id="view-ctrls">
+        <div class="ctrl"><span class="ctrl-label">View</span><div class="chips" id="view-chips"></div></div>
+        <div class="ctrl" id="img-ctrl"><span class="ctrl-label">Image</span><div class="chips" id="img-chips"></div></div>
+      </div>
+      <div class="viewer-row" id="scan-box">
+        <div class="viewer" id="viewer">
+          <canvas id="cv" aria-label="PET image"></canvas>
+          <span class="tag" id="tag"></span><span class="side side-r">R</span><span class="side side-l">L</span>
+        </div>
+        <div class="vslider" id="slice-box">
+          <span class="ctrl-label">Slice</span><span>head</span>
+          <input type="range" id="slice" min="0" max="1" step="1" value="0" aria-label="Slice (top = towards the head)" aria-orientation="vertical">
+          <span>feet</span><span class="mono" id="slice-val"></span>
+        </div>
+        <div class="cbar" id="cbar-box">
+          <span class="ctrl-label" id="cbar-label">SUV</span>
+          <div class="bar"><canvas id="cbar" width="14" height="256" aria-hidden="true"></canvas><div class="ticks" id="ticks"></div></div>
+        </div>
+      </div>
+      <div class="viewer-row" id="ph-box" hidden>
+        <div class="viewer" id="ph-viewer">
+          <canvas id="ph-cv" aria-label="Phantom image"></canvas>
+          <span class="tag" id="ph-tag"></span>
+        </div>
+        <div class="vslider" id="ph-slice-box">
+          <span class="ctrl-label">Slice</span><span>top</span>
+          <input type="range" id="ph-slice" min="0" max="1" step="1" value="0" aria-label="Phantom slice" aria-orientation="vertical">
+          <span>bottom</span><span class="mono" id="ph-slice-val"></span>
+        </div>
+        <div class="cbar" id="ph-cbar-box">
+          <span class="ctrl-label" id="ph-cbar-label">kBq/mL</span>
+          <div class="bar"><canvas id="ph-cbar" width="14" height="256" aria-hidden="true"></canvas><div class="ticks" id="ph-ticks"></div></div>
+        </div>
+      </div>
+      <div class="ctrls" id="display-ctrls">
+        <div class="ctrl"><span class="ctrl-label">Window</span><div class="chips" id="win-chips"></div></div>
+        <div class="ctrl"><span class="ctrl-label">Colours</span><div class="chips" id="cmap-chips"></div></div>
+      </div>
+      <div class="readout" id="readout" aria-live="polite"></div>
+    </div>
+
+    <div class="panel">
+      <!-- step 1 -->
+      <div data-step="iter" class="panel">
+        <div class="tasks"><h2>Tasks</h2><ol>
+          <li class="intro" data-spot="recon-box"><label><b>How the image is made (OSEM)</b>
+            <ul><li>Start from a flat grey image. Work out what the scanner would have counted for it, compare with what it did count, and correct the image.</li>
+              <li>One pass through all the data is one <b>iteration</b>. Here each pass is split into 16 subsets; the hospital used 2 iterations × 21 subsets.</li>
+              <li>Each iteration sharpens the image, and adds noise. A <b>post-filter</b> smooths it afterwards.</li></ul></label></li>
+          <li class="intro" data-spot="metrics,charts"><label><b>The numbers</b>
+            <ul><li><b>Tumour SUVmax</b>: the hottest voxel in the whole tumour (3-D).</li>
+              <li><b>Liver</b>: mean and noise (standard deviation) in a 3 cm sphere, the dashed circle on the lower slices. The liver is the usual reference for both.</li>
+              <li>The charts show every iteration for the chosen filter (grey: the other filters).</li></ul></label></li>
+          <li><input type="checkbox" id="pc1-1"><label for="pc1-1">Predict first: with more iterations, what happens to the tumour SUVmax, the liver mean and the noise?</label></li>
+          <li><input type="checkbox" id="pc1-2"><label for="pc1-2">Set the filter to <b>None</b>. Step through the iterations from 1 to 12. Write down the tumour SUVmax and the liver noise at 1, 3 and 12 iterations.</label></li>
+          <li><input type="checkbox" id="pc1-3"><label for="pc1-3">Now 3 iterations, and try the filters. What happens to the SUVmax and to the noise? (The EANM guideline allows filters up to 7 mm.)</label></li>
+          <li><input type="checkbox" id="pc1-4"><label for="pc1-4">The hospital's own reconstruction of this scan (Block A) gave SUVmax <b class="mono" id="real-suv"></b>. Which number is her real SUVmax?</label></li>
+          <li class="extra"><input type="checkbox" id="pc1-5"><label for="pc1-5">She has her follow-up scan in another hospital, with another scanner and reconstruction. What would you ask before you compare the two SUVmax values?</label></li>
+        </ol></div>
+        <div class="readout" id="metrics" aria-live="polite"></div>
+        <div class="charts" id="charts">
+          <div class="chart"><h3>Tumour SUVmax</h3><div id="ch-max"></div></div>
+          <div class="chart"><h3>Liver noise (SD, as % of the mean)</h3><div id="ch-noise"></div></div>
+        </div>
+        <div class="note">Blue: the filter you chose (dot: the iterations on screen). Grey: the other filters. Hover a dot for its value.</div>
+        <div class="message" data-show-from="pc1-4"><b>There is no one right SUVmax.</b>
+          <ul>
+            <li>The same counts give a different SUVmax with every iteration and filter. More iterations raise it partly because the hottest voxel gets noisier: SUVmax is one voxel.</li>
+            <li>The hospital used a sharper reconstruction (resolution modelling, time of flight, 2 mm pixels, 2 mm filter) than this standard one (4 mm pixels).</li>
+            <li>The liver mean hardly moves: averages over a big region are robust. Maxima of small things are not.</li>
+            <li>That is why multi-centre trials and EARL accreditation fix the reconstruction, so that a phantom gives the same numbers everywhere (next step). The same idea as fixing the b-values for ADC.</li>
+          </ul></div>
+        <div class="message big"><b>Same patient, same data: SUVmax depends on the reconstruction.</b> Compare SUVs only between scans reconstructed the same way.</div>
+      </div>
+      <!-- step 2 -->
+      <div data-step="size" class="panel" hidden>
+        <div class="tasks"><h2>Tasks</h2><ol>
+          <li class="intro" data-spot="ph-box,recon-box"><label><b>A phantom with six spheres</b>
+            <ul><li>The NEMA IEC body phantom: six spheres of 10 to 37 mm, all filled with the same activity, 10 times the background (as in the EARL test).</li>
+              <li>Simulated through the same scanner (blur 6.5 mm) and the same reconstructions.</li>
+              <li><b>Recovery</b> = measured maximum ÷ true activity. 100 % = right.</li></ul></label></li>
+          <li><input type="checkbox" id="pc2-1"><label for="pc2-1">Predict first: will all six spheres show the same maximum?</label></li>
+          <li><input type="checkbox" id="pc2-2"><label for="pc2-2">At 3 iterations and the 5 mm filter, write down the recovery of the 10 mm and the 37 mm sphere.</label></li>
+          <li><input type="checkbox" id="pc2-3"><label for="pc2-3">The scanner blur is 6.5 mm. From about what size do the spheres read close to right?</label></li>
+          <li><input type="checkbox" id="pc2-4"><label for="pc2-4">The grey band is the EARL range. Find a reconstruction with all six spheres inside it. Which iterations and filter? Is there only one?</label></li>
+          <li class="extra"><input type="checkbox" id="pc2-5"><label for="pc2-5">A lymph node of 1 cm reads SUVmax 3, on this reconstruction. What could its true SUV be?</label></li>
+        </ol></div>
+        <div class="table-box"><table>
+          <thead><tr><th>Sphere</th><th class="num">Max (kBq/mL)</th><th class="num">Recovery</th><th class="num">EARL range</th><th>Inside?</th></tr></thead>
+          <tbody id="sphere-table"></tbody></table>
+          <div class="note" id="sphere-note"></div></div>
+        <div class="chart"><h3>Recovery (%) by sphere diameter, with the EARL range</h3><div id="ch-rc"></div><div class="note">Blue: this reconstruction. Grey band: the EARL range.</div></div>
+        <div class="message" data-show-from="pc2-3"><b>The partial-volume effect.</b>
+          <ul>
+            <li>The blur spreads each sphere's counts over a bigger area: small spheres lose their peak.</li>
+            <li>Lesions smaller than 2–3 times the resolution (FWHM) read low (Soret et al.). Here that is below about 15–20 mm.</li>
+            <li>A tumour that shrinks under treatment reads a lower SUVmax even if each cell takes up as much FDG as before.</li>
+          </ul></div>
+        <div class="message big"><b>Small lesions read low.</b> SUVmax depends on the lesion's size as well as its uptake: check the size before you compare.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Simulated scan of a real patient: FDG-PET-CT-Lesions (autoPET), patient PETCT_7faf36a152, study of 14 June 2002 (Gatidis et al., Sci Data 2022;9:601;
+      TCIA, doi:10.7937/gkr0-xv29; CC BY 4.0). Simulated with tools/prep_pet.py: 4.07 mm pixels, 3 mm slices, scanner blur 6.5 mm, Poisson noise, OSEM with 16 subsets, no resolution modelling.
+      Phantom: digital NEMA IEC body phantom, 10:1, without sphere walls.</span>
+    <span>Filters up to 7 mm: Boellaard et al., EANM guideline v2.0, Eur J Nucl Med Mol Imaging 2015;42:328–54. EARL range: EARL1 RCmax bandwidths, Kaalep et al., Eur J Nucl Med Mol Imaging 2018;45:1344–61, Table 13.
+      Partial-volume effect: Soret et al., J Nucl Med 2007;48:932–45.</span>
+  </footer>
+</div>
+
+<script src="pet_recon.js?v=e88d998c"></script>
+<script src="pet_view.js?v=0bde9340"></script>
+<script src="stepper.js?v=b8d2cbf4"></script>
+<script>window.WORKSHEET = "pet";</script>
+<script src="answers.js?v=cd24077b"></script>
+<script>
+(() => {
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const D = window.PET_RECON, PV = window.PetView;
+  if (!D || !PV) { document.querySelector(".bench").innerHTML = `<div class="message">The case data (pet_recon.js, pet_view.js) did not load. Keep them in the same folder as this page.</div>`; return; }
+  const P = D.phantom;
+  const dims = { ns: D.n_slices, rows: D.rows, cols: D.cols, px: D.px_mm, dz: D.slice_mm };
+  const pdims = { ns: P.n_slices, rows: P.rows, cols: P.cols, px: P.px_mm, dz: P.slice_mm };
+  const NA = D.rows * D.cols, NV = NA * D.n_slices;
+  const EARL1 = { 37: [0.95, 1.16], 28: [0.91, 1.13], 22: [0.83, 1.09], 17: [0.73, 1.01], 13: [0.59, 0.85], 10: [0.34, 0.57] };
+  const FILTERS = [0, 3, 5, 7];
+  const jobs = D.iters.map(it => PV.decode(D.pet[it]).then(u => ["pet", it, PV.suv(u, D.vmax)]))
+    .concat(D.iters.map(it => PV.decode(P.pet[it]).then(u => ["ph", it, PV.suv(u, P.vmax)])))
+    .concat([PV.decode(D.ct).then(u => ["ct", 0, PV.hu(u)]), PV.decode(D.lesion).then(u => ["les", 0, u])]);
+  Promise.all(jobs).then(res => {
+  const RAW = {}, PRAW = {}; let CT = null, LES = null;
+  for (const [t, k, a] of res) { if (t === "pet") RAW[k] = a; else if (t === "ph") PRAW[k] = a; else if (t === "ct") CT = a; else LES = a; }
+
+  // tumour region (expert outline one voxel wider) and the liver sphere
+  const near = new Uint8Array(NV), liver = new Uint8Array(NV), [lk, lr, lc] = D.liver;
+  for (let k = 0; k < D.n_slices; k++) for (let r = 0; r < D.rows; r++) for (let c = 0; c < D.cols; c++) {
+    const i = k * NA + r * D.cols + c;
+    if (((k - lk) * D.slice_mm) ** 2 + ((r - lr) * D.px_mm) ** 2 + ((c - lc) * D.px_mm) ** 2 <= 225) liver[i] = 1;
+    if (!LES[i]) continue;
+    for (let dk = -1; dk <= 1; dk++) for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+      const kk = k + dk, rr = r + dr, cc = c + dc;
+      if (kk >= 0 && rr >= 0 && cc >= 0 && kk < D.n_slices && rr < D.rows && cc < D.cols) near[kk * NA + rr * D.cols + cc] = 1;
+    }
+  }
+  const cache = new Map(), pcache = new Map(), mcache = new Map(), rcache = new Map();
+  const img = (it, f) => { const k = it + "/" + f; if (!cache.has(k)) cache.set(k, PV.gauss3(RAW[it], dims, f)); return cache.get(k); };
+  const pimg = (it, f) => { const k = it + "/" + f; if (!pcache.has(k)) pcache.set(k, PV.gauss3(PRAW[it], pdims, f)); return pcache.get(k); };
+  function metrics(it, f) {
+    const k = it + "/" + f;
+    if (!mcache.has(k)) {
+      const a = img(it, f); let mx = 0, n = 0, s = 0, s2 = 0;
+      for (let i = 0; i < NV; i++) { if (near[i] && a[i] > mx) mx = a[i]; if (liver[i]) { n++; s += a[i]; s2 += a[i] * a[i]; } }
+      const mean = s / n, sd = Math.sqrt(Math.max(0, s2 / n - mean * mean));
+      mcache.set(k, { max: mx, mean, sd, cov: sd / mean * 100 });
+    }
+    return mcache.get(k);
+  }
+  function recovery(it, f) {
+    const k = it + "/" + f;
+    if (!rcache.has(k)) {
+      const a = pimg(it, f), PA = P.rows * P.cols, true_ = P.bg * P.ratio;
+      rcache.set(k, P.spheres.map(s => {
+        const rad = s.d_mm / 2 + 2; let mx = 0;
+        for (let kk = 0; kk < P.n_slices; kk++) for (let r = 0; r < P.rows; r++) for (let c = 0; c < P.cols; c++) {
+          if (((kk - P.centre_slice) * P.slice_mm) ** 2 + ((r - s.row) * P.px_mm) ** 2 + ((c - s.col) * P.px_mm) ** 2 > rad * rad) continue;
+          const v = a[kk * PA + r * P.cols + c]; if (v > mx) mx = v;
+        }
+        return { d: s.d_mm, max: mx, rc: mx / true_ };
+      }));
+    }
+    return rcache.get(k);
+  }
+
+  const els = p => ({ canvas: $(p + "cv"), viewer: $(p + "viewer"), tag: $(p + "tag"), slider: $(p + "slice"), sliceBox: $(p + "slice-box"), sliceVal: $(p + "slice-val"),
+    cbarBox: $(p + "cbar-box"), cbar: $(p + "cbar"), ticks: $(p + "ticks"), cbarLabel: $(p + "cbar-label"), readout: $("readout") });
+  const v = PV.create({ els: els(""), dims });
+  const pv = PV.create({ els: els("ph-"), dims: pdims, unit: "kBq/mL", showCorLine: false });
+  v.st.slice = D.start; v.st.corRow = D.cor_row; v.st.ct = CT;
+  pv.st.slice = P.centre_slice; pv.st.corRow = Math.round(P.spheres[0].row); pv.st.win = 30;
+  const st = { step: "iter", it: D.default_iter, f: D.default_filter };
+  const cur = () => st.step === "size" ? pv : v;
+
+  // dashed liver sphere on the axial slices it cuts; sphere labels on the phantom
+  v.overlay = (ctx, g) => {
+    if (g.view !== "axial") return;
+    const dzmm = (v.st.slice - lk) * D.slice_mm;
+    if (Math.abs(dzmm) >= 15) return;
+    const rad = Math.sqrt(225 - dzmm * dzmm) / D.px_mm;
+    ctx.setLineDash([5, 4]); ctx.strokeStyle = v.st.img === "pet" && v.st.cmap === "grey" ? "#e0821a" : "#4cb4d0"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse((lc + 0.5) * g.sx, (lr + 0.5) * g.sy, rad * g.sx, rad * g.sy, 0, 0, 2 * Math.PI); ctx.stroke(); ctx.setLineDash([]);
+  };
+  pv.overlay = (ctx, g) => {
+    if (g.view !== "axial") return;
+    ctx.font = "bold 13px Trebuchet MS, sans-serif"; ctx.textAlign = "center";
+    for (const s of P.spheres) {
+      const x = (s.col + 0.5) * g.sx, y = (s.row + 0.5) * g.sy + (s.d_mm / 2 / P.px_mm + 1.6) * g.sy;
+      ctx.lineWidth = 3; ctx.strokeStyle = "#ffffff"; ctx.strokeText(s.d_mm + " mm", x, y); ctx.fillStyle = "#1a1a1a"; ctx.fillText(s.d_mm + " mm", x, y);
+    }
+  };
+
+  // ---------- chips ----------
+  PV.chips("iter-chips", D.iters.map(it => ({ key: it, label: String(it) })), st.it, x => { st.it = x.key; update(); });
+  PV.chips("filt-chips", FILTERS.map(f => ({ key: f, label: f ? f + " mm" : "None" })), st.f, x => { st.f = x.key; update(); });
+  PV.chips("view-chips", [["axial", "Axial"], ["coronal", "Coronal"]].map(([k, l]) => ({ key: k, label: l })), "axial", x => { const w = cur(); w.st.view = x.key; w.st.roi = null; w.draw(); });
+  PV.chips("img-chips", [["pet", "PET"], ["fused", "PET on CT"]].map(([k, l]) => ({ key: k, label: l })), "pet", x => { v.st.img = x.key; v.draw(); });
+  function winChips() {
+    const w = cur(), opts = st.step === "size" ? [10, 20, 30] : [5, 10, 20];
+    PV.chips("win-chips", opts.map(o => ({ key: o, label: `0–${o}` })), w.st.win, x => { w.st.win = x.key; w.draw(); });
+    PV.toggle("cmap-chips", { off: "Grey (inverted)", on: "Colour", value: w.st.cmap === "hot", onChange: on => { w.st.cmap = on ? "hot" : "grey"; w.draw(); } });
+    PV.press("view-chips", w.st.view);
+  }
+
+  const pct = x => (x * 100).toFixed(0) + " %";
+  function update() {
+    const m = metrics(st.it, st.f);
+    v.st.pet = img(st.it, st.f); v.st.label = `${st.it} it · ${st.f ? st.f + " mm" : "no filter"}`;
+    pv.st.pet = pimg(st.it, st.f); pv.st.label = v.st.label;
+    if (st.step === "size") pv.draw(); else v.draw();
+    // step 1: numbers and charts
+    $("metrics").innerHTML = `<div>Tumour <b class="mono">SUVmax ${m.max.toFixed(2)}</b> &nbsp; Liver <b class="mono">mean ${m.mean.toFixed(2)}</b> &nbsp; noise <b class="mono">SD ${m.sd.toFixed(2)}</b> <span class="note">(${m.cov.toFixed(0)} % of the mean)</span></div>`;
+    const ci = D.iters.indexOf(st.it);
+    const series = key => FILTERS.map(f => ({ name: f ? f + " mm" : "None", values: D.iters.map(it => metrics(it, f)[key]), main: f === st.f }));
+    PV.chart($("ch-max"), { x: D.iters, series: series("max"), current: ci, xLabel: "iterations", fmt: x => x.toFixed(1), aria: "Tumour SUVmax against iterations" });
+    PV.chart($("ch-noise"), { x: D.iters, series: series("cov"), current: ci, xLabel: "iterations", fmt: x => x.toFixed(0), unit: "%", yMin: 0, aria: "Liver noise against iterations" });
+    // step 2: spheres
+    const rc = recovery(st.it, st.f);
+    let all = true;
+    $("sphere-table").innerHTML = rc.map(s => {
+      const [lo, hi] = EARL1[s.d], ok = s.rc >= lo && s.rc <= hi; all = all && ok;
+      return `<tr><td>${s.d} mm</td><td class="num">${s.max.toFixed(1)}</td><td class="num">${pct(s.rc)}</td><td class="num">${pct(lo)}–${pct(hi)}</td><td class="${ok ? "ok" : "bad"}">${ok ? "✓ yes" : "✗ no"}</td></tr>`;
+    }).join("");
+    $("sphere-note").innerHTML = `True activity in every sphere: ${(P.bg * P.ratio).toFixed(0)} kBq/mL (background ${P.bg.toFixed(0)}). Maximum within each sphere. ` +
+      (all ? `<b>All six inside the EARL range.</b>` : `Not all inside the EARL range.`);
+    PV.chart($("ch-rc"), { x: rc.map(s => s.d), series: [{ name: "Recovery", values: rc.map(s => s.rc * 100), main: true }],
+      band: rc.map(s => EARL1[s.d].map(x => x * 100)), xLabel: "sphere diameter (mm)", fmt: x => x.toFixed(0), unit: "%", yMin: 0, xTitle: i => rc[i].d + " mm sphere", aria: "Recovery against sphere diameter" });
+  }
+  $("real-suv").textContent = D.real_suvmax.toFixed(2);
+
+  // ---------- steps ----------
+  const STEPS = ["iter", "size"], NAMES = { iter: "iterations and filter", size: "lesion size" };
+  const steppers = {};
+  function showFrom(li) {
+    const box = li.closest(".tasks"), items = [...box.querySelectorAll(":scope > ol > li")], pos = items.indexOf(li);
+    box.closest("[data-step]").querySelectorAll("[data-show-from]").forEach(el => {
+      const at = items.findIndex(x => x.querySelector("#" + el.dataset.showFrom));
+      el.hidden = pos < at;
+    });
+  }
+  STEPS.forEach((step, si) => {
+    const box = document.querySelector(`[data-step="${step}"] .tasks`);
+    steppers[step] = Stepper.setup(box, {
+      key: "taskpos-petrecon-" + step, sticky: false, onShow: showFrom,
+      prev: si > 0 ? () => { location.hash = STEPS[si - 1]; } : null,
+      next: si < STEPS.length - 1 ? () => { location.hash = STEPS[si + 1]; window.scrollTo({ top: 0 }); } : () => { location.href = "pet.html"; },
+      nextLabel: si < STEPS.length - 1 ? `Next: ${NAMES[STEPS[si + 1]]} →` : "Done: back to all blocks",
+    });
+  });
+  function show(step) {
+    if (!STEPS.includes(step)) step = "iter";
+    st.step = step;
+    document.querySelectorAll("[data-step]").forEach(el => { el.hidden = el.dataset.step !== step; });
+    document.querySelectorAll("nav a").forEach(a => a.setAttribute("aria-current", a.dataset.tab === step ? "page" : "false"));
+    $("scan-box").hidden = step === "size"; $("ph-box").hidden = step !== "size"; $("img-ctrl").hidden = step === "size";
+    winChips(); update();
+    Stepper.clear();
+    if (steppers[step]) steppers[step].refresh();
+  }
+  window.addEventListener("hashchange", () => show(location.hash.slice(1)));
+  show(location.hash.slice(1));
+  }).catch(e => { console.error(e); document.querySelector(".bench").innerHTML = `<div class="message">The images could not be decoded. Try another browser.</div>`; });
+})();
+</script>
+
+</body>
+</html>

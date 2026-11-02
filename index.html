@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>DWI Hands-on</title>
+<title>Quantitative Imaging Hands-on</title>
 <style>
 :root {
   --bg: #ffffff; --surface: #f4f6f9; --line: #dde2ea; --ink: #1a1a1a; --muted: #5f6672; --teal: #2a93b0;
@@ -30,38 +30,40 @@ a.card, div.card {
 a.card:hover { border-color: var(--teal); }
 a.card:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
 .card b { display: block; font-size: 17px; }
+h2 { font-size: 22px; margin: 12px 0 0; }
+section { display: flex; flex-direction: column; gap: 12px; }
 .card .tag { font-size: 12px; font-weight: bold; color: var(--teal); letter-spacing: .05em; text-transform: uppercase; }
 footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px; }
+.choice { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 560px) { .choice { grid-template-columns: minmax(0, 1fr); } }
+.choice a.card { padding: 20px 18px; display: flex; flex-direction: column; gap: 6px; }
+.choice a.card b { font-size: 22px; }
+.choice .go { margin-top: auto; padding-top: 8px; color: var(--teal); font-weight: bold; }
+a.back { color: var(--teal); text-decoration: none; font-size: 14px; }
+a.back:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
 <main>
   <header>
-    <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on session 2 · Group 1</div>
-    <h1>Diffusion-weighted MRI</h1>
+    <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on session 2</div>
+    <h1>Quantitative imaging</h1>
   </header>
-  <p class="muted">When you are shown an ADC number, what do you need to know before you believe it? Work in pairs. Type your
+  <p class="muted">When you are shown a number from an image, what do you need to know before you believe it? Work in pairs. Type your
     answers in the box under each task, and predict before you click.</p>
-  <div class="cards">
-    <a class="card" href="sandbox.html">
-      <span class="tag">Block A</span>
-      <b>ADC &amp; IVIM Sandbox</b>
-      <span class="muted">A real brain scan with 21 b-values: how the choice of b-values changes the ADC.</span>
+  <p>Choose your breakout:</p>
+  <div class="choice">
+    <a class="card" href="mr.html">
+      <span class="tag">Breakout 1</span>
+      <b>MR</b>
+      <span class="muted">Diffusion-weighted MRI: ADC and IVIM, a prostate case and contouring. Three blocks.</span>
+      <span class="go">Open the MR breakout →</span>
     </a>
-    <a class="card" href="prostate.html">
-      <span class="tag">Block B</span>
-      <b>Prostate ADC Case</b>
-      <span class="muted">One tumour, two scans 13 days apart: is the change in ADC real?</span>
-    </a>
-    <a class="card" href="contour.html">
-      <span class="tag">Block C</span>
-      <b>Contouring on DWI</b>
-      <span class="muted">Draw the tumour on T2w and on ADC, and compare.</span>
-    </a>
-    <a class="card" href="answers.html">
-      <span class="tag">Your answers</span>
-      <b>My Answers</b>
-      <span class="muted">Everything you typed in the three blocks, and the checklist for the debrief. Saved in this browser only.</span>
+    <a class="card" href="pet.html">
+      <span class="tag">Breakout 2</span>
+      <b>PET</b>
+      <span class="muted">FDG PET/CT: SUV, attenuation correction, reconstruction and contouring. Four blocks.</span>
+      <span class="go">Open the PET breakout →</span>
     </a>
   </div>
   <footer>Patrik Brynolfsson · No installation needed · Works in any modern browser.</footer>

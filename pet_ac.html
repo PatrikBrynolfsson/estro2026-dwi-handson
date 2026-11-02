@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Attenuation Correction</title>
+</head>
+<body>
+
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* PET Block B. Same shell as Block A. A simulated scan of the Block A patient (tools/prep_pet.py): one set of measured
+   data, reconstructed with her CT, without attenuation correction, and with a CT taken at another point of the breath. */
+:root {
+  --bg: #ffffff; --surface: #f4f6f9; --line: #dde2ea; --ink: #1a1a1a; --muted: #5f6672; --guide: #9aa0a6;
+  --teal: #2a93b0; --red: #e5484d; --orange: #e0821a; --green: #2f9e5b; --chip: #eef1f5; --chip-on: #1a1a1a; --chip-on-fg: #ffffff;
+  --font: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  --mono: Consolas, "SF Mono", Menlo, "Liberation Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14171c; --surface: #1c2027; --line: #2e3440; --ink: #e9ecf1; --muted: #a2aab7; --guide: #5f6773;
+    --teal: #4cb4d0; --red: #f2696d; --orange: #f09a3e; --green: #4cc27e; --chip: #232832; --chip-on: #e9ecf1; --chip-on-fg: #14171c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14171c; --surface: #1c2027; --line: #2e3440; --ink: #e9ecf1; --muted: #a2aab7; --guide: #5f6773;
+  --teal: #4cb4d0; --red: #f2696d; --orange: #f09a3e; --green: #4cc27e; --chip: #232832; --chip-on: #e9ecf1; --chip-on-fg: #14171c;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 32px;
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+header { display: flex; flex-direction: column; gap: 4px; }
+.back { align-self: flex-start; text-decoration: none; color: var(--ink); background: var(--chip); border: 1px solid var(--line); border-radius: 8px; padding: 4px 12px; font-size: 14px; font-weight: bold; }
+.back:hover { border-color: var(--guide); }
+.eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-size: 28px; line-height: 1.15; margin: 0; text-wrap: balance; }
+h2 { font-size: 16px; margin: 0; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); max-width: 72ch; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+nav { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid var(--line); }
+nav a { text-decoration: none; color: var(--muted); padding: 8px 12px; border-bottom: 3px solid transparent; font-weight: bold; margin-bottom: -1px; }
+nav a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--teal); }
+nav a:hover { color: var(--ink); }
+.step-no { font-family: var(--mono); color: var(--teal); margin-right: 6px; }
+.bench { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 880px) { .bench { grid-template-columns: minmax(0, 1fr); } }
+@media (min-width: 881px) { .bench { align-items: stretch; } .bench > .panel > [data-step] > .tasks { flex: 0 0 auto; } }
+.figure, .panel { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.viewer-row { display: grid; grid-template-columns: minmax(0, 1fr) 62px 70px; /* fixed side columns: the image must not move when a label changes */ gap: 10px; align-items: stretch; max-width: 640px; }
+.viewer { position: relative; background: #000000; border-radius: 10px; overflow: hidden; width: 100%; align-self: start; }
+.viewer.light { background: #ffffff; outline: 1px solid var(--line); }
+.viewer canvas { display: block; width: auto; height: auto; max-width: 100%; max-height: 62vh; margin: 0 auto; touch-action: none; cursor: crosshair; }
+.viewer .tag { position: absolute; left: 10px; top: 8px; font-size: 13px; font-weight: bold; pointer-events: none; color: #ffffff; text-shadow: 0 1px 2px #000000; }
+.viewer.light .tag { color: #1a1a1a; text-shadow: none; }
+.viewer .side { position: absolute; top: 50%; font-size: 12px; font-weight: bold; pointer-events: none; color: #c8ccd2; }
+.viewer.light .side { color: #5f6672; }
+.viewer .side-r { left: 8px; } .viewer .side-l { right: 8px; }
+.vslider { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+.vslider input { writing-mode: vertical-lr; direction: rtl; flex: 1; min-height: 120px; width: 26px; margin: 0; accent-color: var(--teal); }
+.vslider .mono { font-size: 13px; color: var(--ink); white-space: nowrap; }
+.cbar { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+.cbar .bar { position: relative; flex: 1; min-height: 120px; display: flex; gap: 4px; }
+.cbar canvas { width: 14px; height: 100%; border: 1px solid var(--line); border-radius: 3px; }
+.cbar .ticks { display: flex; flex-direction: column; justify-content: space-between; font-family: var(--mono); color: var(--ink); font-size: 12px; white-space: nowrap; }
+.ctrls { display: flex; flex-wrap: wrap; gap: 10px 22px; max-width: 640px; }
+.ctrl { display: flex; flex-direction: column; gap: 6px; }
+.ctrl-label { font-size: 13px; font-weight: bold; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+button { font: inherit; font-size: 14px; color: var(--ink); background: var(--chip); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; cursor: pointer; }
+button:hover { border-color: var(--guide); }
+button[aria-pressed="true"] { background: var(--chip-on); color: var(--chip-on-fg); border-color: var(--chip-on); }
+button.primary { background: var(--teal); color: #ffffff; border-color: var(--teal); font-weight: bold; border-radius: 8px; padding: 7px 14px; }
+button.quiet { border-radius: 8px; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button:focus-visible, input:focus-visible, nav a:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.readout { max-width: 640px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; font-size: 14.5px; display: flex; flex-direction: column; gap: 2px; min-height: 3.4em; }
+.readout b.mono { font-size: 15.5px; }
+.cond { max-width: 640px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }
+.tasks { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.tasks ol { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; counter-reset: task; }
+.tasks li { display: grid; grid-template-columns: 22px 26px minmax(0, 1fr); gap: 4px; align-items: start; font-size: 14.5px; }
+.tasks li::before { counter-increment: task; content: counter(task) "."; font-family: var(--mono); color: var(--teal); font-weight: bold; padding-top: 1px; grid-column: 2; grid-row: 1; }
+.tasks li > input { grid-column: 1; grid-row: 1; width: 17px; height: 17px; margin: 2px 0 0; accent-color: var(--teal); cursor: pointer; }
+.tasks li > label { grid-column: 3; grid-row: 1; cursor: pointer; }
+.tasks li.extra > label::before { content: "Bonus question · "; color: var(--teal); font-weight: bold; }
+.tasks li > .after { grid-column: 2 / -1; }
+.table-box { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 13px; color: var(--muted); font-weight: bold; }
+td.num, th.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+tr.on td { font-weight: bold; }
+.message { background: var(--surface); border-radius: 10px; padding: 12px 14px; font-size: 14.5px; }
+.message ul { margin: 6px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 3px; }
+.message.big { border-left: 4px solid var(--teal); font-size: 16px; }
+.note { font-size: 12.5px; color: var(--muted); }
+footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+@media (prefers-reduced-motion: no-preference) { button { transition: background .12s, color .12s, border-color .12s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <a class="back" href="pet.html">← All blocks</a>
+    <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · PET · Block B</div>
+    <h1>Attenuation correction</h1>
+    <p class="lede">The same patient as Block A, now as a simulated scan: her real PET and CT, put through a model of the scanner.
+      Because it is simulated, we can change one thing at a time and keep everything else, even the noise, exactly the same.</p>
+  </header>
+
+  <nav aria-label="Steps">
+    <a href="#ac" data-tab="ac"><span class="step-no">1</span>With and without AC</a>
+    <a href="#breath" data-tab="breath"><span class="step-no">2</span>Breathing</a>
+  </nav>
+
+  <section class="bench">
+    <div class="figure">
+      <div class="cond" id="cond-box">
+        <div class="ctrl"><span class="ctrl-label" id="cond-label">Attenuation correction</span><div class="chips" id="cond-chips"></div></div>
+      </div>
+      <div class="ctrls" id="view-ctrls">
+        <div class="ctrl"><span class="ctrl-label">View</span><div class="chips" id="view-chips"></div></div>
+        <div class="ctrl"><span class="ctrl-label">Image</span><div class="chips" id="img-chips"></div></div>
+      </div>
+      <div class="viewer-row" id="scan-box">
+        <div class="viewer" id="viewer">
+          <canvas id="cv" aria-label="PET image"></canvas>
+          <span class="tag" id="tag"></span><span class="side side-r">R</span><span class="side side-l">L</span>
+        </div>
+        <div class="vslider" id="slice-box">
+          <span class="ctrl-label">Slice</span><span>head</span>
+          <input type="range" id="slice" min="0" max="1" step="1" value="0" aria-label="Slice (top = towards the head)" aria-orientation="vertical">
+          <span>feet</span><span class="mono" id="slice-val"></span>
+        </div>
+        <div class="cbar" id="cbar-box">
+          <span class="ctrl-label" id="cbar-label">SUV</span>
+          <div class="bar"><canvas id="cbar" width="14" height="256" aria-hidden="true"></canvas><div class="ticks" id="ticks"></div></div>
+        </div>
+      </div>
+      <div class="ctrls" id="display-ctrls">
+        <div class="ctrl"><span class="ctrl-label">Window</span><div class="chips" id="win-chips"></div></div>
+        <div class="ctrl"><span class="ctrl-label">Colours</span><div class="chips" id="cmap-chips"></div></div>
+      </div>
+      <div class="readout" id="readout" aria-live="polite"></div>
+    </div>
+
+    <div class="panel">
+      <!-- step 1 -->
+      <div data-step="ac" class="panel">
+        <div class="tasks"><h2>Tasks</h2><ol>
+          <li class="intro" data-spot="scan-box,view-ctrls"><label><b>A simulated scan</b>
+            <ul><li>We took her real PET as the true activity and her CT as her body, and simulated the scan: photons absorbed on the way out, the scanner's blur, noise.</li>
+              <li>Then we reconstructed it like a standard clinical scan (4 mm pixels), so the numbers differ a little from Block A.</li>
+              <li>The slab runs from the upper abdomen (liver) to the middle of the chest. <b>Coronal</b>: click it to move the axial slice.</li></ul></label></li>
+          <li class="intro" data-spot="cond-box"><label><b>Attenuation correction (AC)</b>
+            <ul><li>Many photons never leave the body: they are absorbed or scattered on the way out.</li>
+              <li>The scanner corrects for that with the CT.</li>
+              <li>Here you can switch the correction off. Same data, same noise.</li></ul></label></li>
+          <li><input type="checkbox" id="pb1-1"><label for="pb1-1">Predict first: without attenuation correction, which parts of the body will look too bright, and which too dark? Then press <b>Without AC</b> and look at the axial and coronal views.</label></li>
+          <li><input type="checkbox" id="pb1-2"><label for="pb1-2">Drag a circle over the tumour, then over the liver (lower slices), with and without AC. Work out tumour ÷ liver both ways. Which makes the tumour stand out more?</label></li>
+          <li><input type="checkbox" id="pb1-3"><label for="pb1-3">Why is the centre of the body dark without AC? Why are the lungs and the skin bright?</label></li>
+          <li class="extra"><input type="checkbox" id="pb1-4"><label for="pb1-4">Without AC the values have no unit. Could you still report an SUV?</label></li>
+        </ol></div>
+        <div class="message" data-show-from="pb1-3"><b>Both photons have to get out.</b>
+          <ul>
+            <li>FDG decays into two photons flying in opposite directions. The scanner counts the pair only if both reach the detectors.</li>
+            <li>Together they always cross the whole body along their line, wherever on the line they started. So what counts is the length of the line through the body.</li>
+            <li>Lines through the middle of the body cross the most tissue: through 30 cm of soft tissue, only about 1 pair in 18 gets out. Lines that graze the skin, or run through air-filled lung, lose little.</li>
+            <li>The scanner turns the CT (HU) into how strongly each voxel absorbs 511 keV photons, and multiplies each line back up.</li>
+          </ul></div>
+        <div class="message big"><b>Without AC there is no SUV.</b> With AC, the CT is part of every PET value.</div>
+      </div>
+      <!-- step 2 -->
+      <div data-step="breath" class="panel" hidden>
+        <div class="tasks"><h2>Tasks</h2><ol>
+          <li class="intro" data-spot="cond-box"><label><b>The CT is a snapshot</b>
+            <ul><li>The CT takes a few seconds; the PET takes minutes per bed position while she breathes freely. The PET shows her average position.</li>
+              <li>If the CT catches the diaphragm higher or lower than that average, the wrong tissue is used to correct some lines.</li>
+              <li>Here you choose where the diaphragm was in the CT. We moved her CT the most at the diaphragm, and less towards the top of the lungs.</li></ul></label></li>
+          <li class="intro" data-spot="img-chips,cbar-box"><label><b>Change</b>
+            <ul><li><b>Change</b> shows the difference from the matched CT, in %: red = too high, blue = too low.</li>
+              <li>The PET data are the same in every case. Only the CT used for AC changes.</li></ul></label></li>
+          <li><input type="checkbox" id="pb2-1"><label for="pb2-1">Predict first: the CT was taken after she breathed out, with the diaphragm 2 cm higher. Will the tumour's SUVmax go up, go down or stay the same? Then press <b>2 cm higher</b> and drag a circle over the tumour.</label></li>
+          <li><input type="checkbox" id="pb2-2"><label for="pb2-2">Switch to <b>Coronal</b> and <b>Change</b>. Where are the errors, and do they make the PET too high or too low?</label></li>
+          <li><input type="checkbox" id="pb2-3"><label for="pb2-3">Try every CT. Which gives the biggest error in the tumour's SUVmax, and how big?</label></li>
+          <li><input type="checkbox" id="pb2-4"><label for="pb2-4">Choose <b>PET on CT</b> with the 2 cm higher CT, at the tumour. In clinic, what would tell you that the CT and the PET do not match?</label></li>
+          <li class="extra"><input type="checkbox" id="pb2-5"><label for="pb2-5">What could the department do to make this error smaller?</label></li>
+        </ol></div>
+        <div class="table-box" data-show-from="pb2-3"><table>
+          <thead><tr><th>CT used for AC</th><th class="num">Tumour SUVmax</th><th class="num">Change</th></tr></thead>
+          <tbody id="shift-table"></tbody></table>
+          <div class="note">SUVmax inside the expert lesion outline (one voxel wider), this reconstruction.</div></div>
+        <div class="message" data-show-from="pb2-3"><b>Why the tumour changes.</b>
+          <ul>
+            <li>Every line through the tumour crosses the tumour itself: about 3 cm of soft tissue. When the moved CT puts air-filled lung there instead, those lines are corrected too little, and the tumour reads low.</li>
+            <li>At the liver dome the CT shows liver where the PET saw lung (or the reverse): a curved band that is too hot or too cold. Osman et al. saw such curved cold bands at the diaphragm in 84 % of PET/CT scans, mostly mild.</li>
+            <li>Erdi et al. corrected the same PET data with CTs from different breathing phases, as here: lesion SUVmax varied by up to 24 % (30 % over all phases).</li>
+          </ul></div>
+        <div class="message" data-show-from="pb2-5"><b>Making it smaller.</b>
+          <ul>
+            <li>Ask for shallow breathing during the CT, not a deep breath in (Goerres et al.: a deep breath in can badly degrade the PET).</li>
+            <li>An averaged CT (several breathing phases) gives smaller mismatch errors than a CT at the end of breathing out (Liu et al.).</li>
+            <li>Respiratory-gated PET with a matching 4D CT, where available.</li>
+            <li>And look at PET on CT at the liver dome every time, before you trust a number or a contour there.</li>
+          </ul></div>
+        <div class="message big"><b>The CT is in the PET.</b> A breathing mismatch moves the SUV of a tumour near the diaphragm, with nothing changed in the patient.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Simulated scan of a real patient: FDG-PET-CT-Lesions (autoPET), patient PETCT_7faf36a152, study of 14 June 2002 (Gatidis et al., Sci Data 2022;9:601;
+      TCIA, doi:10.7937/gkr0-xv29; CC BY 4.0). <span id="recon-note"></span> CT to 511 keV attenuation: bilinear conversion (Carney et al., Med Phys 2006;33:976–83).</span>
+    <span>Osman et al., Eur J Nucl Med Mol Imaging 2003;30:603–6. Erdi et al., J Nucl Med 2004;45:1287–92. Goerres et al., Radiology 2003;226:906–10.
+      Liu et al., Phys Med Biol 2009;54:7345–62.</span>
+  </footer>
+</div>
+
+<script src="pet_ac.js?v=56d5335a"></script>
+<script src="pet_view.js?v=0bde9340"></script>
+<script src="stepper.js?v=b8d2cbf4"></script>
+<script>window.WORKSHEET = "pet";</script>
+<script src="answers.js?v=cd24077b"></script>
+<script>
+(() => {
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const D = window.PET_AC, PV = window.PetView;
+  if (!D || !PV) { document.querySelector(".bench").innerHTML = `<div class="message">The case data (pet_ac.js, pet_view.js) did not load. Keep them in the same folder as this page.</div>`; return; }
+  const dims = { ns: D.n_slices, rows: D.rows, cols: D.cols, px: D.px_mm, dz: D.slice_mm };
+  const NA = D.rows * D.cols, NV = NA * D.n_slices;
+  const petKeys = Object.keys(D.pet), ctKeys = Object.keys(D.ct);
+  const jobs = petKeys.map(k => PV.decode(D.pet[k]).then(u => ["pet", k, PV.suv(u, D.vmax)]))
+    .concat(ctKeys.map(k => PV.decode(D.ct[k]).then(u => ["ct", k, PV.hu(u)])))
+    .concat([PV.decode(D.lesion).then(u => ["les", null, u])]);
+  Promise.all(jobs).then(res => {
+  const PET = {}, CT = {}; let LES = null;
+  for (const [t, k, a] of res) { if (t === "pet") PET[k] = a; else if (t === "ct") CT[k] = a; else LES = a; }
+  // lesion outline one voxel wider (3-D), to find the tumour's maximum under every CT
+  const near = new Uint8Array(NV);
+  for (let k = 0; k < D.n_slices; k++) for (let r = 0; r < D.rows; r++) for (let c = 0; c < D.cols; c++) {
+    if (!LES[k * NA + r * D.cols + c]) continue;
+    for (let dk = -1; dk <= 1; dk++) for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+      const kk = k + dk, rr = r + dr, cc = c + dc;
+      if (kk >= 0 && rr >= 0 && cc >= 0 && kk < D.n_slices && rr < D.rows && cc < D.cols) near[kk * NA + rr * D.cols + cc] = 1;
+    }
+  }
+  const lesMax = a => { let m = 0; for (let i = 0; i < NV; i++) if (near[i] && a[i] > m) m = a[i]; return m; };
+
+  const COND_AC = [["matched", "With AC (her CT)"], ["nac", "Without AC"]];
+  const label = d => d === 0 ? "Matched" : `${Math.abs(d / 10)} cm ${d < 0 ? "higher" : "lower"}`;
+  const SHIFTS = [...D.shifts_mm].sort((a, b) => a - b);
+  const COND_BR = [-20, 0, 10, 20, 40].filter(d => d === 0 || SHIFTS.includes(d)).map(d => [d === 0 ? "matched" : "s" + d, label(d) + (d === 40 ? " (deep breath in)" : d === -20 ? " (breathed out)" : "")]);
+  const ctOf = c => c === "matched" || c === "nac" ? "0" : c.slice(1);
+
+  const v = PV.create({ els: { canvas: $("cv"), viewer: $("viewer"), tag: $("tag"), slider: $("slice"), sliceBox: $("slice-box"), sliceVal: $("slice-val"),
+    cbarBox: $("cbar-box"), cbar: $("cbar"), ticks: $("ticks"), cbarLabel: $("cbar-label"), readout: $("readout") }, dims });
+  const st = { step: "ac", cond: "matched" };
+  v.st.slice = D.start; v.st.corRow = D.cor_row;
+
+  function apply() {
+    const c = st.cond;
+    v.st.pet = PET[c]; v.st.ct = CT[ctOf(c)]; v.st.ref = PET.matched;
+    v.st.unit = c === "nac" ? "no unit" : "SUV";
+    if (v.st.img === "change" && st.step !== "breath") v.st.img = "pet";
+    v.st.label = { matched: "With AC", nac: "Without AC" }[c] || ("CT: diaphragm " + label(+c.slice(1)));
+    v.draw();
+  }
+  function condChips() {
+    const items = st.step === "ac" ? COND_AC : COND_BR;
+    if (!items.some(i => i[0] === st.cond)) st.cond = "matched";
+    $("cond-label").textContent = st.step === "ac" ? "Attenuation correction" : "Diaphragm in the CT, compared with the PET";
+    PV.chips("cond-chips", items.map(([k, l]) => ({ key: k, label: l })), st.cond, it => { st.cond = it.key; apply(); });
+  }
+  function imgChips() {
+    const items = [["pet", "PET"], ["ct", "CT"], ["fused", "PET on CT"]].concat(st.step === "breath" ? [["change", "Change"]] : []);
+    PV.chips("img-chips", items.map(([k, l]) => ({ key: k, label: l })), v.st.img, it => { v.st.img = it.key; v.draw(); });
+  }
+  PV.chips("view-chips", [["axial", "Axial"], ["coronal", "Coronal"]].map(([k, l]) => ({ key: k, label: l })), v.st.view, it => { v.st.view = it.key; v.st.roi = null; v.draw(); });
+  PV.chips("win-chips", [5, 10, 20].map(w => ({ key: w, label: `0–${w}` })), v.st.win, it => { v.st.win = it.key; v.draw(); });
+  PV.toggle("cmap-chips", { off: "Grey (inverted)", on: "Colour", value: v.st.cmap === "hot", onChange: on => { v.st.cmap = on ? "hot" : "grey"; v.draw(); } });
+
+  // the table of tumour SUVmax per CT
+  const base = lesMax(PET.matched);
+  $("shift-table").innerHTML = COND_BR.map(([k, l]) => {
+    const m = lesMax(PET[k]), ch = (m / base - 1) * 100;
+    return `<tr><td>${l}</td><td class="num">${m.toFixed(2)}</td><td class="num">${k === "matched" ? "–" : (ch >= 0 ? "+" : "−") + Math.abs(ch).toFixed(0) + " %"}</td></tr>`;
+  }).join("");
+  $("recon-note").textContent = `Simulated with tools/prep_pet.py: 4.07 mm pixels, 3 mm slices, scanner blur 6.5 mm, Poisson noise; ${D.recon}.`;
+
+  // ---------- steps ----------
+  const STEPS = ["ac", "breath"], NAMES = { ac: "with and without AC", breath: "breathing" };
+  const steppers = {};
+  function showFrom(li) {
+    const box = li.closest(".tasks"), items = [...box.querySelectorAll(":scope > ol > li")], pos = items.indexOf(li);
+    box.closest("[data-step]").querySelectorAll("[data-show-from]").forEach(el => {
+      const at = items.findIndex(x => x.querySelector("#" + el.dataset.showFrom));
+      el.hidden = pos < at;
+    });
+  }
+  STEPS.forEach((step, si) => {
+    const box = document.querySelector(`[data-step="${step}"] .tasks`);
+    steppers[step] = Stepper.setup(box, {
+      key: "taskpos-petac-" + step, sticky: false, onShow: showFrom,
+      prev: si > 0 ? () => { location.hash = STEPS[si - 1]; } : null,
+      next: si < STEPS.length - 1 ? () => { location.hash = STEPS[si + 1]; window.scrollTo({ top: 0 }); } : () => { location.href = "pet.html"; },
+      nextLabel: si < STEPS.length - 1 ? `Next: ${NAMES[STEPS[si + 1]]} →` : "Done: back to all blocks",
+    });
+  });
+  function show(step) {
+    if (!STEPS.includes(step)) step = "ac";
+    st.step = step;
+    document.querySelectorAll("[data-step]").forEach(el => { el.hidden = el.dataset.step !== step; });
+    document.querySelectorAll("nav a").forEach(a => a.setAttribute("aria-current", a.dataset.tab === step ? "page" : "false"));
+    if (v.st.img === "change" && step !== "breath") v.st.img = "pet";
+    condChips(); imgChips(); apply();
+    Stepper.clear();
+    if (steppers[step]) steppers[step].refresh();
+  }
+  window.addEventListener("hashchange", () => show(location.hash.slice(1)));
+  show(location.hash.slice(1));
+  }).catch(e => { console.error(e); document.querySelector(".bench").innerHTML = `<div class="message">The images could not be decoded. Try another browser.</div>`; });
+})();
+</script>
+
+</body>
+</html>

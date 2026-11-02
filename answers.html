@@ -58,6 +58,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .goto { font-size: 14px; font-weight: normal; color: var(--teal); }
 .sum-q { display: flex; flex-direction: column; gap: 0; }
 .sum-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.sum-head .goto { margin-left: auto; white-space: nowrap; }
 .sum-head .no { font-family: var(--mono); font-weight: bold; color: var(--teal); min-width: 1.4em; }
 .sum-head .lk { font-size: 12px; color: var(--orange); font-weight: bold; }
 .sum-q .ws { margin-top: 6px; }
@@ -71,7 +72,7 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
 
 <div class="wrap">
   <header>
-    <a class="back" href="index.html">← All blocks</a>
+    <a class="back" href="mr.html">← All blocks</a>
     <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · DWI</div>
     <h1>My answers</h1>
     <p class="lede">Everything you typed in Blocks A, B and C. You can change answers here too. They are saved in this browser
@@ -98,7 +99,7 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
   <footer>Using a shared computer? Press <b>Clear all answers</b> when you are done.</footer>
 </div>
 
-<script src="answers.js"></script>
+<script src="answers.js?v=cd24077b"></script>
 <script>
 (() => {
   "use strict";

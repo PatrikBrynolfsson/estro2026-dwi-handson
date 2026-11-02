@@ -1,0 +1,589 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SUV from the Header</title>
+</head>
+<body>
+
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* PET Block A. Same shell as the DWI pages: the image on the left, the step's tasks on the right, steps as tabs.
+   Real images and the real DICOM header of one patient; nothing simulated on this page. */
+:root {
+  --bg: #ffffff; --surface: #f4f6f9; --line: #dde2ea; --ink: #1a1a1a; --muted: #5f6672; --guide: #9aa0a6;
+  --teal: #2a93b0; --red: #e5484d; --orange: #e0821a; --green: #2f9e5b; --chip: #eef1f5; --chip-on: #1a1a1a; --chip-on-fg: #ffffff;
+  --font: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  --mono: Consolas, "SF Mono", Menlo, "Liberation Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14171c; --surface: #1c2027; --line: #2e3440; --ink: #e9ecf1; --muted: #a2aab7; --guide: #5f6773;
+    --teal: #4cb4d0; --red: #f2696d; --orange: #f09a3e; --green: #4cc27e; --chip: #232832; --chip-on: #e9ecf1; --chip-on-fg: #14171c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14171c; --surface: #1c2027; --line: #2e3440; --ink: #e9ecf1; --muted: #a2aab7; --guide: #5f6773;
+  --teal: #4cb4d0; --red: #f2696d; --orange: #f09a3e; --green: #4cc27e; --chip: #232832; --chip-on: #e9ecf1; --chip-on-fg: #14171c;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 32px;
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+header { display: flex; flex-direction: column; gap: 4px; }
+.back { align-self: flex-start; text-decoration: none; color: var(--ink); background: var(--chip); border: 1px solid var(--line); border-radius: 8px; padding: 4px 12px; font-size: 14px; font-weight: bold; }
+.back:hover { border-color: var(--guide); }
+.eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-size: 28px; line-height: 1.15; margin: 0; text-wrap: balance; }
+h2 { font-size: 16px; margin: 0; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); max-width: 72ch; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+nav { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid var(--line); }
+nav a { text-decoration: none; color: var(--muted); padding: 8px 12px; border-bottom: 3px solid transparent; font-weight: bold; margin-bottom: -1px; }
+nav a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--teal); }
+nav a:hover { color: var(--ink); }
+.step-no { font-family: var(--mono); color: var(--teal); margin-right: 6px; }
+
+.bench { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 880px) { .bench { grid-template-columns: minmax(0, 1fr); } }
+@media (min-width: 881px) { .bench { align-items: stretch; } .bench > .panel > [data-step] > .tasks { flex: 0 0 auto; } }
+.figure, .panel { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.viewer-row { display: grid; grid-template-columns: minmax(0, 1fr) 62px 70px; /* fixed side columns: the image must not move when a label changes */ gap: 10px; align-items: stretch; max-width: 640px; }
+.viewer { position: relative; background: #000000; border-radius: 10px; overflow: hidden; width: 100%; align-self: start; }
+.viewer.light { background: #ffffff; outline: 1px solid var(--line); }
+.viewer canvas { display: block; width: auto; height: auto; max-width: 100%; max-height: 66vh; margin: 0 auto; touch-action: none; cursor: crosshair; }
+.viewer .tag { position: absolute; left: 10px; top: 8px; font-size: 13px; font-weight: bold; pointer-events: none; color: #ffffff; text-shadow: 0 1px 2px #000000; }
+.viewer.light .tag { color: #1a1a1a; text-shadow: none; }
+.viewer .side { position: absolute; top: 50%; font-size: 12px; font-weight: bold; pointer-events: none; color: #c8ccd2; }
+.viewer.light .side { color: #5f6672; }
+.viewer .side-r { left: 8px; } .viewer .side-l { right: 8px; }
+.vslider { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+.vslider input { writing-mode: vertical-lr; direction: rtl; flex: 1; min-height: 120px; width: 26px; margin: 0; accent-color: var(--teal); }
+.vslider .mono { font-size: 13px; color: var(--ink); white-space: nowrap; }
+.cbar { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+.cbar .bar { position: relative; flex: 1; min-height: 120px; display: flex; gap: 4px; }
+.cbar canvas { width: 14px; height: 100%; border: 1px solid var(--line); border-radius: 3px; }
+.cbar .ticks { display: flex; flex-direction: column; justify-content: space-between; font-family: var(--mono); color: var(--ink); font-size: 12px; }
+
+.ctrls { display: flex; flex-wrap: wrap; gap: 10px 22px; max-width: 640px; }
+.ctrl { display: flex; flex-direction: column; gap: 6px; }
+.ctrl-label { font-size: 13px; font-weight: bold; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+button {
+  font: inherit; font-size: 14px; color: var(--ink); background: var(--chip); border: 1px solid var(--line);
+  border-radius: 999px; padding: 5px 12px; cursor: pointer;
+}
+button:hover { border-color: var(--guide); }
+button[aria-pressed="true"] { background: var(--chip-on); color: var(--chip-on-fg); border-color: var(--chip-on); }
+button.primary { background: var(--teal); color: #ffffff; border-color: var(--teal); font-weight: bold; border-radius: 8px; padding: 7px 14px; }
+button.quiet { border-radius: 8px; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button:focus-visible, input:focus-visible, nav a:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.readout { max-width: 640px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; font-size: 14.5px; display: flex; flex-direction: column; gap: 2px; min-height: 3.4em; }
+.readout b.mono { font-size: 15.5px; }
+
+.tasks { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.tasks ol { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; counter-reset: task; }
+.tasks li { display: grid; grid-template-columns: 22px 26px minmax(0, 1fr); gap: 4px; align-items: start; font-size: 14.5px; }
+.tasks li::before { counter-increment: task; content: counter(task) "."; font-family: var(--mono); color: var(--teal); font-weight: bold; padding-top: 1px; grid-column: 2; grid-row: 1; }
+.tasks li > input { grid-column: 1; grid-row: 1; width: 17px; height: 17px; margin: 2px 0 0; accent-color: var(--teal); cursor: pointer; }
+.tasks li > label { grid-column: 3; grid-row: 1; cursor: pointer; }
+.tasks li.extra > label::before { content: "Bonus question · "; color: var(--teal); font-weight: bold; }
+.tasks li > .after { grid-column: 2 / -1; }
+
+.table-box { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 13px; color: var(--muted); font-weight: bold; }
+td.num, th.num { text-align: right; }
+td.num, td.val { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+td.tagno { font-family: var(--mono); color: var(--muted); white-space: nowrap; font-size: 13px; }
+td.val { white-space: nowrap; }
+td .mean { color: var(--muted); font-family: var(--font); font-size: 13px; display: block; }
+.message { background: var(--surface); border-radius: 10px; padding: 12px 14px; font-size: 14.5px; }
+.message ul { margin: 6px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 3px; }
+.message.big { border-left: 4px solid var(--teal); font-size: 16px; }
+.formula { font-family: var(--mono); font-size: 15px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin: 6px 0; overflow-x: auto; white-space: nowrap; }
+.note { font-size: 12.5px; color: var(--muted); }
+.check { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.check .ok { color: var(--green); font-weight: bold; }
+.check .bad { color: var(--red); font-weight: bold; }
+.whatif { display: grid; grid-template-columns: minmax(0, 13em) minmax(0, 1fr); gap: 8px 12px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.whatif label { font-weight: bold; font-size: 14px; }
+.whatif input[type=text] { font: inherit; font-family: var(--mono); width: 10ch; text-align: right; color: var(--ink); background: var(--bg); border: 1px solid var(--guide); border-radius: 6px; padding: 4px 8px; }
+.whatif .unit { color: var(--muted); font-size: 13px; margin-left: 6px; }
+.whatif .chg { color: var(--orange); font-weight: bold; font-size: 13px; margin-left: 8px; }
+@media (max-width: 520px) { .whatif { grid-template-columns: minmax(0, 1fr); } }
+.result { font-size: 17px; }
+.result b { font-family: var(--mono); font-size: 20px; }
+footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+@media (prefers-reduced-motion: no-preference) { button { transition: background .12s, color .12s, border-color .12s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <a class="back" href="pet.html">← All blocks</a>
+    <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · PET · Block A</div>
+    <h1>SUV from the header</h1>
+    <p class="lede">A woman of 58 with lung cancer, scanned with FDG PET/CT. These are her real images and her real DICOM header.
+      The viewer shows SUV, but the scanner never stored an SUV: it is calculated from five numbers in the header.
+      Where do they come from, and what if one is wrong?</p>
+  </header>
+
+  <nav aria-label="Steps">
+    <a href="#image" data-tab="image"><span class="step-no">1</span>The image</a>
+    <a href="#header" data-tab="header"><span class="step-no">2</span>The header</a>
+    <a href="#whatif" data-tab="whatif"><span class="step-no">3</span>What if?</a>
+  </nav>
+
+  <section class="bench">
+    <div class="figure">
+      <div class="ctrls" id="view-ctrls">
+        <div class="ctrl"><span class="ctrl-label">View</span><div class="chips" id="view-chips"></div></div>
+        <div class="ctrl"><span class="ctrl-label">Image</span><div class="chips" id="img-chips"></div></div>
+      </div>
+      <div class="viewer-row" id="scan-box">
+        <div class="viewer" id="viewer">
+          <canvas id="cv" aria-label="PET image"></canvas>
+          <span class="tag" id="tag"></span><span class="side side-r">R</span><span class="side side-l">L</span>
+        </div>
+        <div class="vslider" id="slice-box">
+          <span class="ctrl-label">Slice</span>
+          <span id="sl-top">head</span>
+          <input type="range" id="slice" min="0" max="1" step="1" value="0" aria-label="Slice (top = towards the head)" aria-orientation="vertical">
+          <span id="sl-bot">feet</span>
+          <span class="mono" id="slice-val"></span>
+        </div>
+        <div class="cbar" id="cbar-box">
+          <span class="ctrl-label">SUV</span>
+          <div class="bar"><canvas id="cbar" width="14" height="256" aria-hidden="true"></canvas><div class="ticks" id="ticks"></div></div>
+        </div>
+      </div>
+      <div class="ctrls" id="display-ctrls">
+        <div class="ctrl"><span class="ctrl-label">Window (SUV)</span><div class="chips" id="win-chips"></div></div>
+        <div class="ctrl"><span class="ctrl-label">Colours</span><div class="chips" id="cmap-chips"></div></div>
+      </div>
+      <div class="readout" id="readout" aria-live="polite"></div>
+    </div>
+
+    <div class="panel">
+      <!-- step 1 -->
+      <div data-step="image" class="panel">
+        <div class="tasks"><h2>Tasks</h2><ol>
+          <li class="intro" data-spot="scan-box,view-ctrls"><label><b>The images</b>
+            <ul><li><b>MIP</b>: the whole body at once, the brightest point along each line of sight. <b>Coronal</b>: one slice from the front. <b>Axial</b>: the chest, slice by slice.</li>
+              <li><b>Slider</b>: on the axial, head at the top; on the coronal, front at the top. On the MIP or coronal view, click a spot to jump the axial slice there.</li>
+              <li><b>PET on CT</b> lays the PET over the CT.</li></ul></label></li>
+          <li class="intro" data-spot="display-ctrls,readout,cbar-box"><label><b>Reading values</b>
+            <ul><li><b>Click</b> a point to read its value.</li>
+              <li><b>Drag</b> a circle (axial or coronal) to get the SUVmax and SUVmean inside it.</li>
+              <li><b>Window</b>: the SUV shown as full black (or white in colour). Everything above it looks the same.</li></ul></label></li>
+          <li><input type="checkbox" id="pa1-1"><label for="pa1-1">Find the tumour. Start on the MIP, click it, then look at the axial slice. Where is it?</label></li>
+          <li><input type="checkbox" id="pa1-2"><label for="pa1-2">Predict first: you change the window from SUV 0–20 to 0–5. Will the tumour look bigger, the same or smaller? Then try it.</label></li>
+          <li><input type="checkbox" id="pa1-3"><label for="pa1-3">Drag a circle around the tumour on the axial slice where it is brightest. Write down the SUVmax and the SUVmean.</label></li>
+          <li><input type="checkbox" id="pa1-4"><label for="pa1-4">Back on the MIP: what else lights up? Is that cancer?</label></li>
+        </ol></div>
+        <div class="message big"><b>The viewer shows SUV. The scanner stored Bq/mL.</b> Next: where does the SUV come from?</div>
+      </div>
+      <!-- step 2 -->
+      <div data-step="header" class="panel" hidden>
+        <div class="tasks"><h2>Tasks</h2><ol>
+          <li><input type="checkbox" id="pa2-1"><label for="pa2-1">The scanner stores <b>activity concentration</b>: becquerels per millilitre (Units = BQML). SUV divides it by the activity per gram of body:
+            <div class="formula">SUV = C [Bq/mL] ÷ ( dose at scan start [Bq] ÷ weight [g] )</div>
+            Find in the header (below) the values you need: weight, dose, injection time, scan time and half-life.</label></li>
+          <li><input type="checkbox" id="pa2-2"><label for="pa2-2">The dose was measured at injection; by the scan it has decayed. Predict first: the header has two scan times. Which one do you use?</label></li>
+          <li><input type="checkbox" id="pa2-3"><label for="pa2-3">Calculate the SUV of the hottest voxel (<b class="mono" id="hot-bq"></b> Bq/mL), step by step:
+            <div class="formula">fraction left = 2^( − uptake time ÷ half-life )</div>
+            Then press <b>Check my numbers</b>.</label></li>
+          <li class="extra"><input type="checkbox" id="pa2-4"><label for="pa2-4">SUV per lean body mass (SUL), as in PERCIST. Lean body mass for a woman (Janmahasatian):
+            <div class="formula">LBM = 9270 × W ÷ (8780 + 244 × BMI)</div>
+            with W in kg and BMI = W ÷ height². Then SULmax = SUVmax × LBM ÷ W.</label></li>
+        </ol></div>
+        <div class="message" data-show-from="pa2-3"><b>Series Time, not Acquisition Time.</b>
+          <ul>
+            <li>The bed moved continuously: each slice has its own Acquisition Time. This slice was measured at <span class="mono" id="acq-t"></span>, <span id="acq-min"></span> min after the series started.</li>
+            <li>But Decay Correction = START: the scanner has already corrected every slice back to the series start, <span class="mono" id="ser-t"></span>. The Decay Factor of this slice (<span class="mono" id="dfac"></span>) is exactly that correction.</li>
+            <li>So the dose is decayed to the Series Time. Using the slice time would correct twice: SUVmax <span id="acq-err"></span> too high.</li>
+          </ul></div>
+        <div class="table-box" id="header-box"><table>
+          <thead><tr><th>Tag</th><th>Name</th><th>Value in the file</th></tr></thead>
+          <tbody id="header-table"></tbody></table></div>
+        <div class="note" id="stored-note"></div>
+        <div class="message big"><b>SUV is a calculation.</b> Four of its numbers are typed in by people, and two come from clocks.</div>
+      </div>
+      <!-- step 3 -->
+      <div data-step="whatif" class="panel" hidden>
+        <div class="tasks"><h2>Tasks</h2><ol>
+          <li class="intro" data-spot="whatif-box,scan-box"><label><b>Change the header</b>
+            <ul><li>Change a value below, or press a ready-made mistake.</li>
+              <li>The image and the SUVmax update at once; the window stays the same.</li>
+              <li><b>Back to the header</b> undoes everything.</li></ul></label></li>
+          <li><input type="checkbox" id="pa3-1"><label for="pa3-1">Someone typed the weight in pounds: 154 instead of 70 kg. Predict SUVmax first, then press <b>Weight in pounds</b>.</label></li>
+          <li><input type="checkbox" id="pa3-2"><label for="pa3-2">The clock in the injection room runs 30 min slow, so the injection was logged at 07:14 instead of 07:44. Predict: does SUVmax go up or down, and by how much? Then press <b>Clock 30 min slow</b>.</label></li>
+          <li><input type="checkbox" id="pa3-3"><label for="pa3-3">10 % of the dose stayed in the syringe and the line (32 MBq), but the header says 323 MBq. Which SUVmax is right: the one on the screen, or a higher or lower one? Press <b>10 % left in the syringe</b>.</label></li>
+          <li><input type="checkbox" id="pa3-4"><label for="pa3-4">The scanner was busy and she was scanned at 90 min instead of 55. The calculation corrects for decay. Can it also correct for this?</label></li>
+          <li><input type="checkbox" id="pa3-5"><label for="pa3-5">She comes back for a follow-up scan after treatment. What do you check in the header before you compare the two SUVs?</label></li>
+        </ol></div>
+        <div class="whatif" id="whatif-box">
+          <label for="w-weight">Patient's weight</label><span><input type="text" id="w-weight" inputmode="decimal"><span class="unit">kg</span><span class="chg" id="c-weight"></span></span>
+          <label for="w-dose">Injected dose</label><span><input type="text" id="w-dose" inputmode="decimal"><span class="unit">MBq</span><span class="chg" id="c-dose"></span></span>
+          <label for="w-resid">Left in syringe and line</label><span><input type="text" id="w-resid" inputmode="decimal"><span class="unit">MBq (subtracted)</span><span class="chg" id="c-resid"></span></span>
+          <label for="w-inj">Injection time</label><span><input type="text" id="w-inj" inputmode="numeric"><span class="unit">hh:mm:ss</span><span class="chg" id="c-inj"></span></span>
+          <span class="ctrl-label">Decay to</span><span class="chips" id="tref-chips"></span>
+        </div>
+        <div class="chips" id="preset-chips"></div>
+        <div class="message result" id="whatif-result"></div>
+        <div class="message" data-show-from="pa3-4"><b>Decay is physics; uptake is biology.</b>
+          <ul>
+            <li>The calculation removes the radioactive decay exactly, whatever the uptake time.</li>
+            <li>It cannot remove the biology: FDG keeps building up in most tumours after an hour, so a later scan usually gives a higher SUV.</li>
+            <li>That is why the EANM guideline fixes the uptake time: 60 min, acceptable 55–75 min. A repeat scan should match the first uptake time to within 10 min (Boellaard 2015). This patient: 55 min.</li>
+            <li>Even with everything matched, SUVmax repeats only to within about 12 % (same scanner). QIBA counts a change as real only from +39 % or −28 % (tumours of 2 cm or more, SUVmax of 4 or more).</li>
+          </ul></div>
+        <div class="message big"><b>Same scan, same tumour: the SUV moves with every number in the header.</b> Before you compare two SUVs,
+          check weight, dose, clocks and uptake time on both scans.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Data: FDG-PET-CT-Lesions (autoPET), patient PETCT_7faf36a152, study of 14 June 2002 (Gatidis et al., Sci Data 2022;9:601;
+      TCIA, doi:10.7937/gkr0-xv29; CC BY 4.0). <span id="scanner"></span>. Real images and real header values; PET stored
+      for this page with about 1 % precision (the hottest voxel exactly). The head is not shown: the data provider blanked it
+      to protect the patient's identity.</span>
+    <span>SUV: Boellaard et al., EANM procedure guidelines for FDG PET/CT tumour imaging v2.0, Eur J Nucl Med Mol Imaging 2015;42:328–54.
+      Repeatability: QIBA FDG-PET/CT profile v1.14 (2023), Claim 2. Lean body mass: Janmahasatian et al., Clin Pharmacokinet 2005;44:1051–65. DICOM tags: DICOM PS3.3, PET Image and PET Isotope modules.</span>
+  </footer>
+</div>
+
+<script src="pet_suv.js?v=4ba5bff5"></script>
+<script src="pet_view.js?v=0bde9340"></script>
+<script src="stepper.js?v=b8d2cbf4"></script>
+<script>window.WORKSHEET = "pet";</script>
+<script src="answers.js?v=cd24077b"></script>
+<script>
+(() => {
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const D = window.PET_SUV;
+  if (!D) { document.querySelector(".bench").innerHTML = `<div class="message">The case data (pet_suv.js) did not load. Keep it in the same folder as this page.</div>`; return; }
+
+  // ---------- the header values and the SUV factor ----------
+  const hms = s => { const m = /^(\d{1,2}):?(\d{2}):?(\d{2})?/.exec(String(s).trim()); return m ? (+m[1]) * 3600 + (+m[2]) * 60 + (+(m[3] || 0)) : NaN; };
+  const fmtT = sec => [Math.floor(sec / 3600), Math.floor(sec / 60) % 60, Math.round(sec) % 60].map(v => String(v).padStart(2, "0")).join(":");
+  const TRUE = { weight: D.weight_kg, dose: D.dose_bq / 1e6, resid: 0, inj: hms(D.inj_time), tref: "series" };
+  const T_REF = { series: hms(D.series_time), acq: hms(D.slice_acq_time) };
+  let vals = { ...TRUE };
+  const factor = v => v.weight * 1000 / ((v.dose - v.resid) * 1e6 * Math.pow(2, -(T_REF[v.tref] - v.inj) / D.half_life_s));
+  const F_TRUE = factor(TRUE);
+  const fNow = () => (st.step === "whatif" ? factor(vals) : F_TRUE);
+  const num = s => parseFloat(String(s).replace(",", ".").replace(/\s/g, ""));
+  const fmt = (x, d = 2) => isFinite(x) ? x.toFixed(d) : "–";
+  const grp = x => Math.round(x).toLocaleString("en-GB").replace(/,/g, " ");
+
+  // ---------- images ----------
+  const decode = uri => new Promise((ok, fail) => {
+    const im = new Image();
+    im.onload = () => {
+      const c = document.createElement("canvas"); c.width = im.width; c.height = im.height;
+      const x = c.getContext("2d", { willReadFrequently: true }); x.drawImage(im, 0, 0);
+      const d = x.getImageData(0, 0, im.width, im.height).data, u = new Uint8Array(im.width * im.height);
+      for (let i = 0; i < u.length; i++) u[i] = d[4 * i];
+      ok(u);
+    };
+    im.onerror = fail; im.src = uri;
+  });
+  const BQ = new Float32Array(256).map((_, g) => D.pet_max * (g / 255) ** 2);   // grey level -> Bq/mL (sqrt scale)
+  const st = { step: "image", view: "mip", img: "pet", win: 10, cmap: "grey", slice: D.axial.start, cor: D.coronal.start, roi: null, point: null, drag: null };
+
+  Promise.all([decode(D.axial.pet), decode(D.axial.ct), decode(D.coronal.pet), decode(D.mip.pet)]).then(([axP, axC, corP, mipP]) => {
+  const A = D.axial, NR = A.rows, NC = A.cols, NA = NR * NC, PX = D.px_mm, SL = D.slice_mm, C = D.coronal, NCO = C.rows * C.cols;
+  const VIEWS = {
+    axial: { rows: NR, cols: NC, dy: PX, px: k => axP.subarray(k * NA, (k + 1) * NA), ct: k => axC.subarray(k * NA, (k + 1) * NA) },
+    coronal: { rows: C.rows, cols: C.cols, dy: SL, px: () => corP.subarray(st.cor * NCO, (st.cor + 1) * NCO) },
+    mip: { rows: D.mip.rows, cols: D.mip.cols, dy: SL, px: () => mipP },
+  };
+  const bqAt = (view, r, c) => {
+    const V = VIEWS[view];
+    if (r < 0 || c < 0 || r >= V.rows || c >= V.cols) return NaN;
+    // the hottest voxel exactly (the stored images have 1 % steps); on the coronal and MIP it sits at one pixel too
+    if (view === "axial" ? st.slice === D.hot.axial_index && r === D.hot.row && c === D.hot.col
+      : (view === "mip" || st.cor === C.start) && r === C.axial_top_row + D.hot.axial_index && c === D.hot.col + C.col_offset) return D.hot.bqml;
+    return BQ[V.px(st.slice)[r * V.cols + c]];
+  };
+
+  // ---------- chips ----------
+  function chips(id, items, current, onPick) {
+    const box = $(id); box.innerHTML = "";
+    for (const it of items) {
+      const b = document.createElement("button");
+      b.type = "button"; b.textContent = it.label; b.dataset.key = it.key; b.setAttribute("aria-pressed", String(String(it.key) === String(current)));
+      b.addEventListener("click", () => { press(id, it.key); onPick(it); });
+      box.appendChild(b);
+    }
+  }
+  const press = (id, key) => $(id).querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.key === String(key))));
+  const setView = v => { st.view = v; st.roi = null; st.point = null; refreshChips(); syncSlider(); draw(); };
+  function refreshChips() {
+    chips("view-chips", [["mip", "MIP"], ["coronal", "Coronal"], ["axial", "Axial"]].map(([k, l]) => ({ key: k, label: l })), st.view, it => setView(it.key));
+    chips("img-chips", [["pet", "PET"], ["ct", "CT"], ["fused", "PET on CT"]].map(([k, l]) => ({ key: k, label: l })), st.img, it => { st.img = it.key; draw(); });
+  }
+  chips("win-chips", [5, 10, 20].map(w => ({ key: w, label: `0–${w}` })), st.win, it => { st.win = it.key; draw(); });
+  PetView.toggle("cmap-chips", { off: "Grey (inverted)", on: "Colour", value: st.cmap === "hot", onChange: on => { st.cmap = on ? "hot" : "grey"; draw(); } });
+  refreshChips();
+  const sl = $("slice");
+  // one slider: the axial slice (head at the top) or the coronal slice (front at the top)
+  function syncSlider() {
+    const cor = st.view === "coronal";
+    sl.max = String((cor ? C.n_slices : A.n_slices) - 1); sl.value = String(cor ? st.cor : st.slice);
+    $("sl-top").textContent = cor ? "front" : "head"; $("sl-bot").textContent = cor ? "back" : "feet";
+    sl.setAttribute("aria-label", cor ? "Coronal slice (top = front)" : "Slice (top = towards the head)");
+  }
+  syncSlider();
+  sl.addEventListener("input", () => { if (st.view === "coronal") st.cor = +sl.value; else st.slice = +sl.value; st.roi = null; st.point = null; draw(); });
+
+  // ---------- colour ----------
+  function hot(t) {         // black -> red -> yellow -> white
+    t = Math.max(0, Math.min(1, t));
+    return [Math.min(1, t * 2.6), Math.max(0, Math.min(1, t * 2.6 - 1)), Math.max(0, Math.min(1, t * 3 - 2))].map(v => Math.round(v * 255));
+  }
+  const colour = t => st.cmap === "hot" ? hot(t) : (v => [v, v, v])(Math.round(255 * (1 - Math.max(0, Math.min(1, t)))));
+  function drawBar() {
+    const c = $("cbar"), x = c.getContext("2d"), im = x.createImageData(14, 256);
+    const cm = st.img === "fused" ? hot : colour;
+    for (let y = 0; y < 256; y++) { const rgb = cm(1 - y / 255); for (let i = 0; i < 14; i++) { const o = 4 * (y * 14 + i); im.data[o] = rgb[0]; im.data[o + 1] = rgb[1]; im.data[o + 2] = rgb[2]; im.data[o + 3] = 255; } }
+    x.putImageData(im, 0, 0);
+    $("ticks").innerHTML = `<span>${st.win}</span><span>${st.win / 2}</span><span>0</span>`;
+  }
+
+  // ---------- drawing ----------
+  const cv = $("cv"), ctx = cv.getContext("2d"), off = document.createElement("canvas"), octx = off.getContext("2d");
+  let geo = null;           // canvas pixels per image pixel, per axis
+  function draw() {
+    const V = VIEWS[st.view], f = fNow();
+    off.width = V.cols; off.height = V.rows;
+    const S = Math.max(2, Math.ceil(620 / V.cols)), W = V.cols * S, H = Math.round(V.rows * (V.dy / PX) * S);
+    if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+    geo = { sx: W / V.cols, sy: H / V.rows };
+    const lut = new Array(256);
+    for (let g = 0; g < 256; g++) lut[g] = colour(BQ[g] * f / st.win);
+    const img = octx.createImageData(V.cols, V.rows), p = V.px(st.slice), n = V.cols * V.rows;
+    if (st.img === "pet") {
+      for (let i = 0; i < n; i++) { const c = lut[p[i]]; img.data[4 * i] = c[0]; img.data[4 * i + 1] = c[1]; img.data[4 * i + 2] = c[2]; img.data[4 * i + 3] = 255; }
+    } else {
+      const ct = V.ct(st.slice), lo = -1000, hi = 300;    // lung window
+      for (let i = 0; i < n; i++) {
+        const hu = ct[i] / 254 * 2000 - 1000, gv = Math.max(0, Math.min(255, (hu - lo) / (hi - lo) * 255));
+        let r = gv, g = gv, b = gv;
+        if (st.img === "fused") {
+          const t = BQ[p[i]] * f / st.win, a = t < 0.06 ? 0 : Math.min(0.85, t * 1.2), c = hot(t);
+          r = r * (1 - a) + c[0] * a; g = g * (1 - a) + c[1] * a; b = b * (1 - a) + c[2] * a;
+        }
+        img.data[4 * i] = r; img.data[4 * i + 1] = g; img.data[4 * i + 2] = b; img.data[4 * i + 3] = 255;
+      }
+    }
+    octx.putImageData(img, 0, 0);
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(off, 0, 0, W, H);
+    const light = st.img === "pet" && st.cmap === "grey";
+    $("viewer").classList.toggle("light", light);
+    const ink = light ? "#e0821a" : "#4cb4d0";
+    // where the axial slice is, on the coronal and MIP views; where the coronal slice is, on the axial view
+    const corRowAx = C.first_row + st.cor * C.row_step;
+    if (st.view !== "axial" || (corRowAx >= 0 && corRowAx < NR)) {
+      const y = (st.view === "axial" ? corRowAx + 0.5 : C.axial_top_row + st.slice + 0.5) * geo.sy;
+      ctx.setLineDash([6, 6]); ctx.strokeStyle = ink; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); ctx.setLineDash([]);
+    }
+    if (st.roi) {
+      const [r0, c0, rad] = st.roi;
+      ctx.strokeStyle = ink; ctx.lineWidth = 2.5; ctx.beginPath();
+      ctx.ellipse((c0 + 0.5) * geo.sx, (r0 + 0.5) * geo.sy, rad / PX * geo.sx, rad / V.dy * geo.sy, 0, 0, 2 * Math.PI); ctx.stroke();
+    }
+    if (st.point) {
+      const [r, c] = st.point, x = (c + 0.5) * geo.sx, y = (r + 0.5) * geo.sy;
+      ctx.strokeStyle = ink; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x - 10, y); ctx.lineTo(x - 3, y); ctx.moveTo(x + 3, y); ctx.lineTo(x + 10, y);
+      ctx.moveTo(x, y - 10); ctx.lineTo(x, y - 3); ctx.moveTo(x, y + 3); ctx.lineTo(x, y + 10); ctx.stroke();
+    }
+    $("slice-box").style.visibility = st.view === "mip" ? "hidden" : "visible";
+    syncSlider();
+    // only the controls that apply: MIP and coronal are PET only (no CT stack); window and colours as on every PET page
+    PetView.limit("view-chips", k => k !== "axial" && st.img !== "pet" ? "MIP and coronal: PET only. Choose PET first." : null);
+    PetView.limit("img-chips", k => k !== "pet" && st.view !== "axial" ? "CT is shown on the axial view only." : null);
+    PetView.displayFor(st.img);
+    $("cbar-box").style.visibility = st.img === "ct" ? "hidden" : "visible";
+    const name = { pet: "PET", ct: "CT", fused: "PET on CT" }[st.img];
+    $("tag").textContent = st.view === "axial" ? `${name} · axial · slice ${st.slice + 1} of ${A.n_slices}`
+      : st.view === "coronal" ? `PET · coronal · slice ${st.cor + 1} of ${C.n_slices}` + (st.cor === C.start ? " (through the tumour)" : "") : "PET · MIP (whole body)";
+    $("slice-val").textContent = st.view === "coronal" ? `${st.cor + 1} / ${C.n_slices}` : `${st.slice + 1} / ${A.n_slices}`;
+    drawBar(); readout();
+  }
+
+  // ---------- reading values ----------
+  function roiStats() {
+    if (!st.roi) return null;
+    const V = VIEWS[st.view], [r0, c0, rad] = st.roi;
+    let n = 0, sum = 0, mx = -Infinity;
+    const rr = Math.ceil(rad / V.dy), cr = Math.ceil(rad / PX);
+    for (let r = Math.max(0, r0 - rr); r <= Math.min(V.rows - 1, r0 + rr); r++)
+      for (let c = Math.max(0, c0 - cr); c <= Math.min(V.cols - 1, c0 + cr); c++) {
+        if (((r - r0) * V.dy) ** 2 + ((c - c0) * PX) ** 2 > rad * rad) continue;
+        const v = bqAt(st.view, r, c); n++; sum += v; if (v > mx) mx = v;
+      }
+    return n ? { n, mean: sum / n, max: mx, d: 2 * rad } : null;
+  }
+  function readout() {
+    const f = fNow(), lines = [];
+    if (st.point) {
+      const v = bqAt(st.view, st.point[0], st.point[1]);
+      lines.push(`<div>Point: <b class="mono">SUV ${fmt(v * f)}</b> &nbsp; <span class="note">stored as</span> <span class="mono">${grp(v)} Bq/mL</span></div>`);
+    }
+    const s = roiStats();
+    if (s) lines.push(`<div>Circle (${fmt(s.d / 10, 1)} cm): <b class="mono">SUVmax ${fmt(s.max * f)}</b> &nbsp; <b class="mono">SUVmean ${fmt(s.mean * f)}</b> &nbsp; <span class="note">max stored as</span> <span class="mono">${grp(s.max)} Bq/mL</span></div>`);
+    if (!lines.length) lines.push(st.view === "mip" ? `<span class="note">Click a spot on the MIP to jump the axial slice there.</span>` : `<span class="note">Click to read a value; drag to draw a circle.</span>`);
+    $("readout").innerHTML = lines.join("");
+  }
+
+  // ---------- pointer ----------
+  const gridRC = ev => { const b = cv.getBoundingClientRect(), V = VIEWS[st.view]; return [Math.floor((ev.clientY - b.top) / b.height * V.rows), Math.floor((ev.clientX - b.left) / b.width * V.cols)]; };
+  cv.addEventListener("pointerdown", ev => { ev.preventDefault(); cv.setPointerCapture(ev.pointerId); st.drag = gridRC(ev); });
+  cv.addEventListener("pointermove", ev => {
+    if (!st.drag || st.view === "mip") return;
+    const p = gridRC(ev), V = VIEWS[st.view], rad = Math.hypot((p[0] - st.drag[0]) * V.dy, (p[1] - st.drag[1]) * PX);
+    if (rad > 3) { st.roi = [st.drag[0], st.drag[1], rad]; st.point = null; draw(); }
+  });
+  function up(ev) {
+    if (!st.drag) return;
+    const p = gridRC(ev), moved = st.roi && st.roi[0] === st.drag[0] && st.roi[1] === st.drag[1];
+    if (!moved || st.view === "mip") {
+      st.point = p;
+      if (st.view !== "axial") {                   // jump the axial slice to the clicked height
+        const k = p[0] - C.axial_top_row;
+        if (k >= 0 && k < A.n_slices) st.slice = k;
+      } else {                                     // and the coronal slice to the clicked depth
+        const j = Math.round((p[0] - C.first_row) / C.row_step);
+        if (j >= 0 && j < C.n_slices) st.cor = j;
+      }
+    }
+    st.drag = null; draw();
+  }
+  cv.addEventListener("pointerup", up);
+  cv.addEventListener("pointercancel", () => { st.drag = null; });
+
+  // ---------- step 2: header table, checks ----------
+  $("hot-bq").textContent = grp(D.hot.bqml);
+  $("header-table").innerHTML = D.header.map(h => {
+    let mean = h.unit;
+    if (h.unit === "Bq") mean = `= ${grp(+h.value / 1e6)} MBq`;
+    else if (/^\d\d:\d\d/.test(h.unit)) mean = `= ${h.unit}`;
+    else if (h.unit === "s") mean = `seconds (= ${(+h.value / 60).toFixed(1)} min)`;
+    return `<tr><td class="tagno">${h.tag}</td><td>${h.name}</td><td class="val">${h.value}<span class="mean">${mean}</span></td></tr>`;
+  }).join("");
+  $("stored-note").innerHTML = `The file stores whole numbers per voxel: the hottest voxel is stored as <span class="mono">${D.hot.stored}</span>; × Rescale Slope <span class="mono">${D.hot.slope}</span> = <span class="mono">${grp(D.hot.bqml)}</span> Bq/mL.`;
+  $("acq-t").textContent = D.slice_acq_time; $("ser-t").textContent = D.series_time; $("dfac").textContent = D.decay_factor;
+  $("acq-min").textContent = ((T_REF.acq - T_REF.series) / 60).toFixed(1);
+  $("acq-err").textContent = `${((factor({ ...TRUE, tref: "acq" }) / F_TRUE - 1) * 100).toFixed(0)} %`;
+  $("scanner").textContent = `${D.scanner}, reconstruction ${D.recon}, filter ${D.filter}`;
+
+  const upT = (T_REF.series - TRUE.inj) / 60, frac = Math.pow(2, -(T_REF.series - TRUE.inj) / D.half_life_s);
+  const EXP = { up: upT, frac, dose: TRUE.dose * frac, suv: D.hot.bqml * F_TRUE };
+  const li3 = $("pa2-3").closest("li");
+  const chk = document.createElement("div"); chk.className = "after check";
+  chk.innerHTML = `<div><button type="button" class="primary" id="check-btn">Check my numbers</button></div><div id="check-out"></div>`;
+  li3.appendChild(chk);
+  $("check-btn").addEventListener("click", () => {
+    const W = window.Worksheet, g = k => W ? num(W.get("pa2-3", k)) : NaN;
+    const rows = [
+      ["up", "Uptake time", 0.01, "From the Radiopharmaceutical Start Time to the Series Time."],
+      ["frac", "Fraction left", 0.01, "2^(− uptake ÷ half-life), both in the same unit: the half-life is 6586.2 s = 109.8 min."],
+      ["dose", "Dose at scan start", 0.015, "Total dose (in MBq) × fraction left."],
+      ["suv", "SUVmax", 0.015, `${grp(D.hot.bqml)} ÷ (dose at scan start in Bq ÷ weight in grams).`],
+    ];
+    const out = rows.map(([k, name, tol, hint]) => {
+      const v = g(k);
+      if (!isFinite(v)) return `<div><span class="note">${name}: not filled in yet.</span></div>`;
+      if (Math.abs(v / EXP[k] - 1) <= tol) return `<div><span class="ok">✓ ${name}</span></div>`;
+      let h = hint;
+      if (k === "up" && Math.abs(v - (T_REF.acq - TRUE.inj) / 60) < 0.6) h = "That is the Acquisition Time of this slice. Which time was the image decay-corrected to?";
+      return `<div><span class="bad">✗ ${name}</span> <span class="note">${h}</span></div>`;
+    });
+    $("check-out").innerHTML = out.join("");
+  });
+
+  // ---------- step 3: what if ----------
+  const INP = { weight: $("w-weight"), dose: $("w-dose"), resid: $("w-resid"), inj: $("w-inj") };
+  function fillInputs() {
+    INP.weight.value = vals.weight; INP.dose.value = vals.dose; INP.resid.value = vals.resid; INP.inj.value = fmtT(vals.inj);
+    press("tref-chips", vals.tref); whatif();
+  }
+  chips("tref-chips", [["series", `Series Time ${D.series_time}`], ["acq", `Acquisition Time ${D.slice_acq_time}`]].map(([k, l]) => ({ key: k, label: l })), vals.tref,
+    it => { vals.tref = it.key; whatif(); draw(); });
+  for (const [k, el] of Object.entries(INP)) el.addEventListener("input", () => {
+    const v = k === "inj" ? hms(el.value) : num(el.value);
+    if (isFinite(v) && (k === "resid" ? v >= 0 : v > 0)) { vals[k] = v; whatif(); draw(); }
+  });
+  const PRESETS = [
+    ["Weight in pounds", { weight: 154 }],
+    ["Clock 30 min slow", { inj: TRUE.inj - 1800 }],
+    ["10 % left in the syringe", { resid: 32.3 }],
+    ["Back to the header", {}],
+  ];
+  chips("preset-chips", PRESETS.map(([l], i) => ({ key: i, label: l })), null, it => {
+    vals = { ...TRUE, ...PRESETS[it.key][1] }; fillInputs(); draw();
+    press("preset-chips", null);
+  });
+  function whatif() {
+    const f = factor(vals), suv = D.hot.bqml * f, ch = (f / F_TRUE - 1) * 100;
+    const mark = (k, diff) => { $("c-" + k).textContent = diff ? "changed" : ""; };
+    mark("weight", vals.weight !== TRUE.weight); mark("dose", vals.dose !== TRUE.dose); mark("resid", vals.resid !== 0); mark("inj", vals.inj !== TRUE.inj);
+    $("whatif-result").innerHTML = `SUVmax <b>${fmt(suv)}</b> <span class="note">with the header: ${fmt(D.hot.bqml * F_TRUE)}</span>` +
+      (Math.abs(ch) > 0.05 ? ` &nbsp; <b style="color:var(--orange);font-size:17px">${ch > 0 ? "+" : ""}${ch.toFixed(0)} %</b>` : "");
+  }
+  fillInputs();
+
+  // ---------- steps ----------
+  const STEPS = ["image", "header", "whatif"], NAMES = { image: "the image", header: "the header", whatif: "what if?" };
+  const steppers = {};
+  function showFrom(li) {   // messages with data-show-from="<task id>" appear from that task on
+    const box = li.closest(".tasks"), items = [...box.querySelectorAll(":scope > ol > li")], pos = items.indexOf(li);
+    box.closest("[data-step]").querySelectorAll("[data-show-from]").forEach(el => {
+      const at = items.findIndex(x => x.querySelector("#" + el.dataset.showFrom));
+      el.hidden = pos < at;
+    });
+  }
+  STEPS.forEach((step, si) => {
+    const box = document.querySelector(`[data-step="${step}"] .tasks`);
+    steppers[step] = Stepper.setup(box, {
+      key: "taskpos-petsuv-" + step, sticky: false, onShow: showFrom,
+      prev: si > 0 ? () => { location.hash = STEPS[si - 1]; } : null,
+      next: si < STEPS.length - 1 ? () => { location.hash = STEPS[si + 1]; window.scrollTo({ top: 0 }); } : () => { location.href = "pet.html"; },
+      nextLabel: si < STEPS.length - 1 ? `Next: ${NAMES[STEPS[si + 1]]} →` : "Done: back to all blocks",
+    });
+  });
+  function show(step) {
+    if (!STEPS.includes(step)) step = "image";
+    st.step = step;
+    document.querySelectorAll("[data-step]").forEach(el => { el.hidden = el.dataset.step !== step; });
+    document.querySelectorAll("nav a").forEach(a => a.setAttribute("aria-current", a.dataset.tab === step ? "page" : "false"));
+    if (step !== "image" && st.view === "mip") { st.view = "axial"; st.slice = D.hot.axial_index; refreshChips(); }
+    Stepper.clear();
+    if (steppers[step]) steppers[step].refresh();
+    draw();
+  }
+  window.addEventListener("hashchange", () => show(location.hash.slice(1)));
+  show(location.hash.slice(1));
+  }).catch(() => { document.querySelector(".bench").innerHTML = `<div class="message">The images could not be decoded. Try another browser.</div>`; });
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PET Breakout</title>
+<style>
+:root {
+  --bg: #ffffff; --surface: #f4f6f9; --line: #dde2ea; --ink: #1a1a1a; --muted: #5f6672; --teal: #2a93b0;
+  --font: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #14171c; --surface: #1c2027; --line: #2e3440; --ink: #e9ecf1; --muted: #a2aab7; --teal: #4cb4d0; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.5;
+  padding: 32px max(16px, env(safe-area-inset-right, 0px)) 32px max(16px, env(safe-area-inset-left, 0px));
+}
+main { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+.eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-size: 30px; line-height: 1.15; margin: 4px 0 0; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.cards { display: flex; flex-direction: column; gap: 12px; }
+a.card, div.card {
+  display: block; text-decoration: none; color: inherit; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 10px; padding: 14px 16px;
+}
+a.card:hover { border-color: var(--teal); }
+a.card:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.card b { display: block; font-size: 17px; }
+h2 { font-size: 22px; margin: 12px 0 0; }
+section { display: flex; flex-direction: column; gap: 12px; }
+.card .tag { font-size: 12px; font-weight: bold; color: var(--teal); letter-spacing: .05em; text-transform: uppercase; }
+footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px; }
+.choice { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 560px) { .choice { grid-template-columns: minmax(0, 1fr); } }
+.choice a.card { padding: 20px 18px; display: flex; flex-direction: column; gap: 6px; }
+.choice a.card b { font-size: 22px; }
+.choice .go { margin-top: auto; padding-top: 8px; color: var(--teal); font-weight: bold; }
+a.back { color: var(--teal); text-decoration: none; font-size: 14px; }
+a.back:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <a class="back" href="index.html">← Choose breakout</a>
+    <div class="eyebrow">ESTRO Advanced Imaging 2026 · Quantitative imaging · Breakout 2: PET</div>
+    <h1>FDG PET/CT</h1>
+  </header>
+  <p class="muted">When you are shown a number from an image, what do you need to know before you believe it? Work in pairs. Type your
+    answers in the box under each task, and predict before you click.</p>
+  <div class="cards">
+    <a class="card" href="pet_suv.html">
+      <span class="tag">Block A</span>
+      <b>SUV from the Header</b>
+      <span class="muted">A real lung-cancer scan and its DICOM header: SUV is a calculation, and people type in its numbers.</span>
+    </a>
+    <a class="card" href="pet_ac.html">
+      <span class="tag">Block B</span>
+      <b>Attenuation Correction</b>
+      <span class="muted">The same patient, simulated: switch the correction off, and move the CT with her breathing.</span>
+    </a>
+    <a class="card" href="pet_recon.html">
+      <span class="tag">Block C</span>
+      <b>Reconstruction and Lesion Size</b>
+      <span class="muted">Iterations, filters and a sphere phantom: same data, different SUVmax.</span>
+    </a>
+    <a class="card" href="pet_contour.html">
+      <span class="tag">Block D</span>
+      <b>Contouring on PET</b>
+      <span class="muted">Draw the tumour, then compare five automatic methods and another reconstruction.</span>
+    </a>
+    <a class="card" href="pet_answers.html">
+      <span class="tag">Your answers</span>
+      <b>My PET Answers</b>
+      <span class="muted">Everything you typed in the four blocks, and the checklist for the debrief. Saved in this browser only.</span>
+    </a>
+  </div>
+  <footer>Patrik Brynolfsson · No installation needed · Works in any modern browser.</footer>
+</main>
+</body>
+</html>

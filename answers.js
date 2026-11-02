@@ -7,18 +7,19 @@
  *
  * Field types: text (one line), long (a few lines), num (a number, with unit), choice (pick one),
  * multi (pick any), grid (a table of numbers).
+ * Two sets: the DWI group (default) and the PET group. A PET page sets window.WORKSHEET = "pet" before loading
+ * this file; each set has its own questions, storage key and "My answers" page.
  * Load after stepper.js. Uses the page's colour tokens.
  */
 (() => {
   "use strict";
-  const KEY = "dwi-worksheet-v1";
   const ADC = "× 10⁻³ mm²/s";
-  const BLOCKS = {
+  const DWI_BLOCKS = {
     A: { title: "Block A · ADC & IVIM sandbox", page: "sandbox.html" },
     B: { title: "Block B · Has the tumour responded?", page: "prostate.html" },
     C: { title: "Block C · Contouring on DWI", page: "contour.html" },
   };
-  const Q = [
+  const DWI_Q = [
     // ---- Block A, tab 1
     { id: "t1-1", block: "A", group: "Tab 1 · Same brain, different ADC", no: "1", q: "Which parts lose the most signal between b 0 and b 100?",
       fields: [{ k: "a", type: "text" }] },
@@ -78,7 +79,107 @@
     { id: "c4-3", block: "C", group: "Discuss", no: "3", q: "Would distortion correction or registration remove the shift? What would you check?",
       fields: [{ k: "a", type: "long" }] },
   ];
-  const CHECKLIST = ["Which b-values?", "Whose ROI?", "Bigger than the repeatability?", "Geometrically trustworthy?"];
+  const DWI_CHECKLIST = ["Which b-values?", "Whose ROI?", "Bigger than the repeatability?", "Geometrically trustworthy?"];
+
+  // ---------------- PET group ----------------
+  const PET_BLOCKS = {
+    A: { title: "Block A · SUV from the header", page: "pet_suv.html" },
+    B: { title: "Block B · Attenuation correction", page: "pet_ac.html" },
+    C: { title: "Block C · Reconstruction and lesion size", page: "pet_recon.html" },
+    D: { title: "Block D · Contouring on PET", page: "pet_contour.html" },
+  };
+  const PET_Q = [
+    // ---- Block A, step 1: the image
+    { id: "pa1-1", block: "A", group: "1 · The image", no: "1", q: "Where is the tumour?",
+      fields: [{ k: "a", type: "choice", options: ["Right upper lobe", "Right lower lobe", "Left upper lobe", "Left lower lobe"] }] },
+    { id: "pa1-2", block: "A", group: "1 · The image", no: "2", q: "Window SUV 0–5 instead of 0–20: the tumour looks ...",
+      fields: [{ k: "pred", type: "choice", options: ["bigger", "the same", "smaller"], predict: true },
+        { k: "why", type: "text", label: "What did you see?" }] },
+    { id: "pa1-3", block: "A", group: "1 · The image", no: "3", q: "The hottest voxel in the tumour",
+      fields: [{ k: "suv", type: "num", label: "SUVmax" }, { k: "mean", type: "num", label: "SUVmean in your circle" }] },
+    { id: "pa1-4", block: "A", group: "1 · The image", no: "4", q: "What else lights up on the MIP? Is it cancer?", fields: [{ k: "a", type: "text" }] },
+    // ---- Block A, step 2: the header
+    { id: "pa2-2", block: "A", group: "2 · The header", no: "2", q: "Which time do you use for the decay correction?",
+      fields: [{ k: "pred", type: "choice", options: ["Series Time", "Acquisition Time"], predict: true }] },
+    { id: "pa2-3", block: "A", group: "2 · The header", no: "3", q: "SUVmax by hand",
+      fields: [{ k: "up", type: "num", label: "Uptake time", unit: "min" }, { k: "frac", type: "num", label: "Fraction of the dose left" },
+        { k: "dose", type: "num", label: "Dose at scan start", unit: "MBq" }, { k: "suv", type: "num", label: "SUVmax" }] },
+    { id: "pa2-4", block: "A", group: "2 · The header", no: "4", q: "Bonus: SUVmax per lean body mass (SUL)",
+      fields: [{ k: "lbm", type: "num", label: "Lean body mass", unit: "kg" }, { k: "sul", type: "num", label: "SULmax" }] },
+    // ---- Block A, step 3: what if
+    { id: "pa3-1", block: "A", group: "3 · What if", no: "1", q: "Weight typed in pounds (154 instead of 70 kg): SUVmax?",
+      fields: [{ k: "pred", type: "num", label: "My prediction", predict: true }, { k: "real", type: "num", label: "What you found" }] },
+    { id: "pa3-2", block: "A", group: "3 · What if", no: "2", q: "Injection-room clock 30 min slow: SUVmax goes up or down, and by how much?",
+      fields: [{ k: "pred", type: "num", label: "My prediction", unit: "% change", predict: true }, { k: "real", type: "num", label: "What you found", unit: "% change" }] },
+    { id: "pa3-3", block: "A", group: "3 · What if", no: "3", q: "10 % of the dose stayed in the syringe: which SUVmax is right?",
+      fields: [{ k: "pred", type: "choice", options: ["The one on the screen", "Higher", "Lower"], predict: true }, { k: "real", type: "num", label: "Corrected SUVmax" }] },
+    { id: "pa3-4", block: "A", group: "3 · What if", no: "4", q: "Scanned at 90 instead of 55 min: can the calculation correct for it?",
+      fields: [{ k: "a", type: "choice", options: ["Yes", "No"] }, { k: "why", type: "text", label: "Why" }] },
+    { id: "pa3-5", block: "A", group: "3 · What if", no: "5", q: "A follow-up scan: what do you check in the header before you compare SUVs?",
+      fields: [{ k: "a", type: "long" }] },
+    // ---- Block B
+    { id: "pb1-1", block: "B", group: "1 · With and without AC", no: "1", q: "Without AC: what looks too bright, and what too dark?",
+      fields: [{ k: "pred", type: "text", label: "My prediction", predict: true }, { k: "seen", type: "text", label: "What I saw" }] },
+    { id: "pb1-2", block: "B", group: "1 · With and without AC", no: "2", q: "Tumour ÷ liver, with and without AC",
+      fields: [{ k: "ac", type: "num", label: "With AC" }, { k: "nac", type: "num", label: "Without AC" },
+        { k: "more", type: "choice", label: "Tumour stands out more", options: ["With AC", "Without AC"] }] },
+    { id: "pb1-3", block: "B", group: "1 · With and without AC", no: "3", q: "Why is the centre dark without AC, and the lungs and skin bright?", fields: [{ k: "a", type: "text" }] },
+    { id: "pb1-4", block: "B", group: "1 · With and without AC", no: "4", q: "Bonus: an SUV without AC?", fields: [{ k: "a", type: "text" }] },
+    { id: "pb2-1", block: "B", group: "2 · Breathing", no: "1", q: "CT with the diaphragm 2 cm higher: the tumour SUVmax ...",
+      fields: [{ k: "pred", type: "choice", label: "My prediction", options: ["goes up", "stays the same", "goes down"], predict: true },
+        { k: "real", type: "num", label: "SUVmax you measured" }] },
+    { id: "pb2-2", block: "B", group: "2 · Breathing", no: "2", q: "Coronal, Change: where are the errors, too high or too low?", fields: [{ k: "a", type: "text" }] },
+    { id: "pb2-3", block: "B", group: "2 · Breathing", no: "3", q: "The biggest error in the tumour SUVmax",
+      fields: [{ k: "ct", type: "text", label: "Which CT" }, { k: "pct", type: "num", label: "Change", unit: "%" }] },
+    { id: "pb2-4", block: "B", group: "2 · Breathing", no: "4", q: "In clinic, what tells you the CT and the PET do not match?", fields: [{ k: "a", type: "text" }] },
+    { id: "pb2-5", block: "B", group: "2 · Breathing", no: "5", q: "Bonus: how could the department make this error smaller?", fields: [{ k: "a", type: "long" }] },
+    // ---- Block C
+    { id: "pc1-1", block: "C", group: "1 · Iterations and filter", no: "1", q: "More iterations: what happens to ...",
+      fields: [{ k: "max", type: "choice", label: "Tumour SUVmax", options: ["up", "same", "down"], predict: true },
+        { k: "mean", type: "choice", label: "Liver mean", options: ["up", "same", "down"], predict: true },
+        { k: "noise", type: "choice", label: "Noise", options: ["up", "same", "down"], predict: true }] },
+    { id: "pc1-2", block: "C", group: "1 · Iterations and filter", no: "2", q: "No filter: tumour SUVmax and liver noise",
+      fields: [{ k: "t", type: "grid", rows: ["Tumour SUVmax", "Liver noise (SD %)"], cols: ["1 it", "3 it", "12 it"] }] },
+    { id: "pc1-3", block: "C", group: "1 · Iterations and filter", no: "3", q: "3 iterations, with a filter",
+      fields: [{ k: "suv", type: "num", label: "SUVmax with 5 mm" }, { k: "a", type: "text", label: "What the filter does" }] },
+    { id: "pc1-4", block: "C", group: "1 · Iterations and filter", no: "4", q: "The hospital said 12.49. Which is her real SUVmax?", fields: [{ k: "a", type: "text" }] },
+    { id: "pc1-5", block: "C", group: "1 · Iterations and filter", no: "5", q: "Bonus: follow-up in another hospital: what do you ask?", fields: [{ k: "a", type: "long" }] },
+    { id: "pc2-1", block: "C", group: "2 · Lesion size", no: "1", q: "Will all six spheres show the same maximum?",
+      fields: [{ k: "pred", type: "choice", options: ["All the same", "Small ones lower", "Small ones higher"], predict: true }] },
+    { id: "pc2-2", block: "C", group: "2 · Lesion size", no: "2", q: "Recovery at 3 iterations + 5 mm",
+      fields: [{ k: "s10", type: "num", label: "10 mm", unit: "%" }, { k: "s37", type: "num", label: "37 mm", unit: "%" }] },
+    { id: "pc2-3", block: "C", group: "2 · Lesion size", no: "3", q: "From what size do spheres read about right?", fields: [{ k: "mm", type: "num", label: "Size", unit: "mm" }] },
+    { id: "pc2-4", block: "C", group: "2 · Lesion size", no: "4", q: "A reconstruction with all six inside the EARL range", fields: [{ k: "a", type: "text" }] },
+    { id: "pc2-5", block: "C", group: "2 · Lesion size", no: "5", q: "Bonus: a 1 cm node reads SUVmax 3. Its true SUV?", fields: [{ k: "suv", type: "num", label: "True SUV about" }] },
+    // ---- Block D
+    { id: "pd1-2", block: "D", group: "1 · Draw", no: "2", q: "Your outline",
+      fields: [{ k: "v", type: "num", label: "Volume", unit: "mL" }, { k: "win", type: "choice", label: "Window", options: ["0–5", "0–10", "0–20"] }] },
+    { id: "pd1-3", block: "D", group: "1 · Draw", no: "3", q: "Another window: would you draw it differently?", fields: [{ k: "a", type: "text" }] },
+    { id: "pd2-1", block: "D", group: "2 · Automatic methods", no: "1", q: "Biggest and smallest volume",
+      fields: [{ k: "big", type: "choice", label: "Biggest", options: ["41 %", "50 %", "SUV 2.5", "Adaptive", "Gradient"], predict: true },
+        { k: "small", type: "choice", label: "Smallest", options: ["41 %", "50 %", "SUV 2.5", "Adaptive", "Gradient"], predict: true }] },
+    { id: "pd2-2", block: "D", group: "2 · Automatic methods", no: "2", q: "Volumes",
+      fields: [{ k: "t", type: "grid", rows: ["41 %", "50 %", "SUV 2.5", "Adaptive", "Gradient"], cols: ["mL"] }] },
+    { id: "pd2-3", block: "D", group: "2 · Automatic methods", no: "3", q: "Best overlap with the expert outline",
+      fields: [{ k: "best", type: "choice", label: "Method", options: ["41 %", "50 %", "SUV 2.5", "Adaptive", "Gradient"] },
+        { k: "mine", type: "num", label: "Dice of your outline" }] },
+    { id: "pd2-4", block: "D", group: "2 · Automatic methods", no: "4", q: "SUV 2.5: what goes wrong? Liver or brain?", fields: [{ k: "a", type: "text" }] },
+    { id: "pd2-5", block: "D", group: "2 · Automatic methods", no: "5", q: "Bonus: one of these as the GTV? What instead?", fields: [{ k: "a", type: "long" }] },
+    { id: "pd3-1", block: "D", group: "3 · Another reconstruction", no: "1", q: "12 iterations, no filter: the 41 % outline gets ...",
+      fields: [{ k: "pred", type: "choice", options: ["bigger", "the same", "smaller"], predict: true }] },
+    { id: "pd3-2", block: "D", group: "3 · Another reconstruction", no: "2", q: "SUVmax and volumes for three reconstructions",
+      fields: [{ k: "t", type: "grid", rows: ["1 it, 7 mm", "3 it, 5 mm", "12 it, none"], cols: ["SUVmax", "41 % mL", "SUV 2.5 mL"] }] },
+    { id: "pd3-3", block: "D", group: "3 · Another reconstruction", no: "3", q: "Why did the 41 % volume change?", fields: [{ k: "a", type: "text" }] },
+    { id: "pd3-4", block: "D", group: "3 · Another reconstruction", no: "4", q: "Bonus: one 41 % threshold on the phantom: which sizes are right?", fields: [{ k: "a", type: "text" }] },
+  ];
+  const PET_CHECKLIST = ["SUV calculated right?", "Does the CT match the PET?", "Reconstruction and lesion size?", "Which contouring method?"];
+
+  const SETS = {
+    dwi: { key: "dwi-worksheet-v1", name: "DWI", blocks: DWI_BLOCKS, q: DWI_Q, checklist: DWI_CHECKLIST, trust: "AN ADC", answers: "answers.html" },
+    pet: { key: "pet-worksheet-v1", name: "PET", blocks: PET_BLOCKS, q: PET_Q, checklist: PET_CHECKLIST, trust: "AN SUV OR A PET CONTOUR", answers: "pet_answers.html" },
+  };
+  const SET = SETS[window.WORKSHEET] || SETS.dwi;
+  const KEY = SET.key, BLOCKS = SET.blocks, Q = SET.q, CHECKLIST = SET.checklist;
 
   // ---------- storage ----------
   let data = {};
@@ -181,7 +282,7 @@
       const sync = () => {
         const locked = !!data.lock[q.id];
         fs.disabled = locked; lockBtn.hidden = locked; unlock.hidden = !locked;
-        note.textContent = locked ? "🔒 Locked. Now check it on the page." : "";
+        note.textContent = locked ? "🔒 Locked. Now try it and see if you were right." : "";
         if (restBox) restBox.hidden = !locked && rest.length > 0 && !filled(q, rest);
       };
       lockBtn.addEventListener("click", () => {
@@ -216,7 +317,7 @@
     if (back && n && !document.querySelector(".header-links")) {
       const links = document.createElement("div"); links.className = "header-links";
       back.before(links); links.appendChild(back);
-      const a = document.createElement("a"); a.className = "back"; a.href = "answers.html"; a.textContent = "My answers";
+      const a = document.createElement("a"); a.className = "back"; a.href = SET.answers; a.textContent = "My answers";
       links.appendChild(a);
     }
     if (n && !save()) {
@@ -236,7 +337,7 @@
     return (f.label ? f.label + ": " : "") + s + (f.unit && f.type === "num" ? " " + f.unit : "");
   }
   function asText() {
-    const lines = ["DWI hands-on · my answers", ""];
+    const lines = [SET.name + " hands-on · my answers", ""];
     let blk = null, grp = null;
     for (const q of Q) {
       if (q.block !== blk) { blk = q.block; grp = null; lines.push("", BLOCKS[blk].title.toUpperCase()); }
@@ -244,7 +345,7 @@
       const parts = q.fields.map(f => show(q, f)).filter(Boolean);
       lines.push(`${q.no}. ${q.q}`, ...(parts.length ? parts.map(p => "   " + p.replace(/\n/g, "\n   ")) : ["   –"]));
     }
-    lines.push("", "CHECKLIST: BEFORE YOU TRUST AN ADC");
+    lines.push("", "CHECKLIST: BEFORE YOU TRUST " + SET.trust);
     CHECKLIST.forEach((c, i) => lines.push(`${i + 1}. ${c} ${data.v["checklist." + i] || "–"}`));
     return lines.join("\n");
   }
@@ -260,7 +361,7 @@
       }
       if (q.group !== grp) { grp = q.group; const h = document.createElement("h3"); h.textContent = grp; sec.appendChild(h); }
       const item = document.createElement("div"); item.className = "sum-q";
-      item.innerHTML = `<div class="sum-head"><span class="no">${esc(q.no)}</span><span>${esc(q.q)}</span>${data.lock[q.id] ? '<span class="lk">prediction locked</span>' : ""}</div>`;
+      item.innerHTML = `<div class="sum-head"><span class="no">${esc(q.no)}</span><span>${esc(q.q)}</span>${data.lock[q.id] ? '<span class="lk">prediction locked</span>' : ""}<a class="goto" href="${BLOCKS[blk].page}?task=${encodeURIComponent(q.id)}">Go to task →</a></div>`;
       sec.appendChild(item);
       renderInto(item, q);
     }
@@ -275,6 +376,6 @@
   function clearAll() { data = { v: {}, lock: {} }; save(); }
   function count() { return Q.filter(q => filled(q, q.fields)).length; }
 
-  window.Worksheet = { questions: Q, mountPage, renderSummary, renderChecklist, asText, clearAll, count, total: Q.length };
+  window.Worksheet = { questions: Q, get: (qid, k) => get(qid, k), mountPage, renderSummary, renderChecklist, asText, clearAll, count, total: Q.length };
   if (!document.getElementById("ws-summary")) mountPage();
 })();
