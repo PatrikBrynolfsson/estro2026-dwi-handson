@@ -83,7 +83,7 @@
 
   // ---------------- PET group ----------------
   const PET_BLOCKS = {
-    A: { title: "Block A · SUV from the header", page: "pet_suv.html" },
+    A: { title: "Block A · SUV from the DICOM header", page: "pet_suv.html" },
     B: { title: "Block B · Attenuation correction", page: "pet_ac.html" },
     C: { title: "Block C · Reconstruction and lesion size", page: "pet_recon.html" },
     D: { title: "Block D · Contouring on PET", page: "pet_contour.html" },
@@ -99,12 +99,12 @@
       fields: [{ k: "suv", type: "num", label: "SUVmax" }, { k: "mean", type: "num", label: "SUVmean in your circle" }] },
     { id: "pa1-4", block: "A", group: "1 · The image", no: "4", q: "What else lights up on the MIP? Is it cancer?", fields: [{ k: "a", type: "text" }] },
     // ---- Block A, step 2: the header
-    { id: "pa2-2", block: "A", group: "2 · The header", no: "2", q: "Which time do you use for the decay correction?",
+    { id: "pa2-2", block: "A", group: "2 · The DICOM header", no: "2", q: "Which time do you use for the decay correction?",
       fields: [{ k: "pred", type: "choice", options: ["Series Time", "Acquisition Time"], predict: true }] },
-    { id: "pa2-3", block: "A", group: "2 · The header", no: "3", q: "SUVmax by hand",
+    { id: "pa2-3", block: "A", group: "2 · The DICOM header", no: "3", q: "SUVmax by hand",
       fields: [{ k: "up", type: "num", label: "Uptake time", unit: "min" }, { k: "frac", type: "num", label: "Fraction of the dose left" },
         { k: "dose", type: "num", label: "Dose at scan start", unit: "MBq" }, { k: "suv", type: "num", label: "SUVmax" }] },
-    { id: "pa2-4", block: "A", group: "2 · The header", no: "4", q: "Bonus: SUVmax per lean body mass (SUL)",
+    { id: "pa2-4", block: "A", group: "2 · The DICOM header", no: "4", q: "Bonus: SUVmax per lean body mass (SUL)",
       fields: [{ k: "lbm", type: "num", label: "Lean body mass", unit: "kg" }, { k: "sul", type: "num", label: "SULmax" }] },
     // ---- Block A, step 3: what if
     { id: "pa3-1", block: "A", group: "3 · What if", no: "1", q: "Weight typed in pounds (154 instead of 70 kg): SUVmax?",
@@ -115,7 +115,7 @@
       fields: [{ k: "pred", type: "choice", options: ["The one on the screen", "Higher", "Lower"], predict: true }, { k: "real", type: "num", label: "Corrected SUVmax" }] },
     { id: "pa3-4", block: "A", group: "3 · What if", no: "4", q: "Scanned at 90 instead of 55 min: can the calculation correct for it?",
       fields: [{ k: "a", type: "choice", options: ["Yes", "No"] }, { k: "why", type: "text", label: "Why" }] },
-    { id: "pa3-5", block: "A", group: "3 · What if", no: "5", q: "A follow-up scan: what do you check in the header before you compare SUVs?",
+    { id: "pa3-5", block: "A", group: "3 · What if", no: "5", q: "A follow-up scan: what do you check in the DICOM header before you compare SUVs?",
       fields: [{ k: "a", type: "long" }] },
     // ---- Block B
     { id: "pb1-1", block: "B", group: "1 · With and without AC", no: "1", q: "Without AC: what looks too bright, and what too dark?",

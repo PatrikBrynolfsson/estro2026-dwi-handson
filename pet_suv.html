@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>SUV from the Header</title>
+<title>SUV from the DICOM Header</title>
 </head>
 <body>
 
@@ -132,15 +132,15 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
   <header>
     <a class="back" href="pet.html">← All blocks</a>
     <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · PET · Block A</div>
-    <h1>SUV from the header</h1>
+    <h1>SUV from the DICOM header</h1>
     <p class="lede">A woman of 58 with lung cancer, scanned with FDG PET/CT. These are her real images and her real DICOM header.
-      The viewer shows SUV, but the scanner never stored an SUV: it is calculated from five numbers in the header.
+      The viewer shows SUV, but the scanner never stored an SUV: it is calculated from five numbers in the DICOM header.
       Where do they come from, and what if one is wrong?</p>
   </header>
 
   <nav aria-label="Steps">
     <a href="#image" data-tab="image"><span class="step-no">1</span>The image</a>
-    <a href="#header" data-tab="header"><span class="step-no">2</span>The header</a>
+    <a href="#header" data-tab="header"><span class="step-no">2</span>The DICOM header</a>
     <a href="#whatif" data-tab="whatif"><span class="step-no">3</span>What if?</a>
   </nav>
 
@@ -198,8 +198,8 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
         <div class="tasks"><h2>Tasks</h2><ol>
           <li><input type="checkbox" id="pa2-1"><label for="pa2-1">The scanner stores <b>activity concentration</b>: becquerels per millilitre (Units = BQML). SUV divides it by the activity per gram of body:
             <div class="formula">SUV = C [Bq/mL] ÷ ( dose at scan start [Bq] ÷ weight [g] )</div>
-            Find in the header (below) the values you need: weight, dose, injection time, scan time and half-life.</label></li>
-          <li><input type="checkbox" id="pa2-2"><label for="pa2-2">The dose was measured at injection; by the scan it has decayed. Predict first: the header has two scan times. Which one do you use?</label></li>
+            Find in the DICOM header (below) the values you need: weight, dose, injection time, scan time and half-life.</label></li>
+          <li><input type="checkbox" id="pa2-2"><label for="pa2-2">The dose was measured at injection; by the scan it has decayed. Predict first: the DICOM header has two scan times. Which one do you use?</label></li>
           <li><input type="checkbox" id="pa2-3"><label for="pa2-3">Calculate the SUV of the hottest voxel (<b class="mono" id="hot-bq"></b> Bq/mL), step by step:
             <div class="formula">fraction left = 2^( − uptake time ÷ half-life )</div>
             Then press <b>Check my numbers</b>.</label></li>
@@ -222,15 +222,15 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
       <!-- step 3 -->
       <div data-step="whatif" class="panel" hidden>
         <div class="tasks"><h2>Tasks</h2><ol>
-          <li class="intro" data-spot="whatif-box,scan-box"><label><b>Change the header</b>
+          <li class="intro" data-spot="whatif-box,scan-box"><label><b>Change the DICOM header</b>
             <ul><li>Change a value below, or press a ready-made mistake.</li>
               <li>The image and the SUVmax update at once; the window stays the same.</li>
-              <li><b>Back to the header</b> undoes everything.</li></ul></label></li>
+              <li><b>Back to the DICOM header</b> undoes everything.</li></ul></label></li>
           <li><input type="checkbox" id="pa3-1"><label for="pa3-1">Someone typed the weight in pounds: 154 instead of 70 kg. Predict SUVmax first, then press <b>Weight in pounds</b>.</label></li>
           <li><input type="checkbox" id="pa3-2"><label for="pa3-2">The clock in the injection room runs 30 min slow, so the injection was logged at 07:14 instead of 07:44. Predict: does SUVmax go up or down, and by how much? Then press <b>Clock 30 min slow</b>.</label></li>
-          <li><input type="checkbox" id="pa3-3"><label for="pa3-3">10 % of the dose stayed in the syringe and the line (32 MBq), but the header says 323 MBq. Which SUVmax is right: the one on the screen, or a higher or lower one? Press <b>10 % left in the syringe</b>.</label></li>
+          <li><input type="checkbox" id="pa3-3"><label for="pa3-3">10 % of the dose stayed in the syringe and the line (32 MBq), but the DICOM header says 323 MBq. Which SUVmax is right: the one on the screen, or a higher or lower one? Press <b>10 % left in the syringe</b>.</label></li>
           <li><input type="checkbox" id="pa3-4"><label for="pa3-4">The scanner was busy and she was scanned at 90 min instead of 55. The calculation corrects for decay. Can it also correct for this?</label></li>
-          <li><input type="checkbox" id="pa3-5"><label for="pa3-5">She comes back for a follow-up scan after treatment. What do you check in the header before you compare the two SUVs?</label></li>
+          <li><input type="checkbox" id="pa3-5"><label for="pa3-5">She comes back for a follow-up scan after treatment. What do you check in the DICOM header before you compare the two SUVs?</label></li>
         </ol></div>
         <div class="whatif" id="whatif-box">
           <label for="w-weight">Patient's weight</label><span><input type="text" id="w-weight" inputmode="decimal"><span class="unit">kg</span><span class="chg" id="c-weight"></span></span>
@@ -248,7 +248,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
             <li>That is why the EANM guideline fixes the uptake time: 60 min, acceptable 55–75 min. A repeat scan should match the first uptake time to within 10 min (Boellaard 2015). This patient: 55 min.</li>
             <li>Even with everything matched, SUVmax repeats only to within about 12 % (same scanner). QIBA counts a change as real only from +39 % or −28 % (tumours of 2 cm or more, SUVmax of 4 or more).</li>
           </ul></div>
-        <div class="message big"><b>Same scan, same tumour: the SUV moves with every number in the header.</b> Before you compare two SUVs,
+        <div class="message big"><b>Same scan, same tumour: the SUV moves with every number in the DICOM header.</b> Before you compare two SUVs,
           check weight, dose, clocks and uptake time on both scans.</div>
       </div>
     </div>
@@ -256,7 +256,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
 
   <footer>
     <span>Data: FDG-PET-CT-Lesions (autoPET), patient PETCT_7faf36a152, study of 14 June 2002 (Gatidis et al., Sci Data 2022;9:601;
-      TCIA, doi:10.7937/gkr0-xv29; CC BY 4.0). <span id="scanner"></span>. Real images and real header values; PET stored
+      TCIA, doi:10.7937/gkr0-xv29; CC BY 4.0). <span id="scanner"></span>. Real images and real DICOM header values; PET stored
       for this page with about 1 % precision (the hottest voxel exactly). The head is not shown: the data provider blanked it
       to protect the patient's identity.</span>
     <span>SUV: Boellaard et al., EANM procedure guidelines for FDG PET/CT tumour imaging v2.0, Eur J Nucl Med Mol Imaging 2015;42:328–54.
@@ -268,7 +268,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
 <script src="pet_view.js?v=0bde9340"></script>
 <script src="stepper.js?v=b8d2cbf4"></script>
 <script>window.WORKSHEET = "pet";</script>
-<script src="answers.js?v=cd24077b"></script>
+<script src="answers.js?v=6534bd8f"></script>
 <script>
 (() => {
   "use strict";
@@ -535,7 +535,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
     ["Weight in pounds", { weight: 154 }],
     ["Clock 30 min slow", { inj: TRUE.inj - 1800 }],
     ["10 % left in the syringe", { resid: 32.3 }],
-    ["Back to the header", {}],
+    ["Back to the DICOM header", {}],
   ];
   chips("preset-chips", PRESETS.map(([l], i) => ({ key: i, label: l })), null, it => {
     vals = { ...TRUE, ...PRESETS[it.key][1] }; fillInputs(); draw();
@@ -545,13 +545,13 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
     const f = factor(vals), suv = D.hot.bqml * f, ch = (f / F_TRUE - 1) * 100;
     const mark = (k, diff) => { $("c-" + k).textContent = diff ? "changed" : ""; };
     mark("weight", vals.weight !== TRUE.weight); mark("dose", vals.dose !== TRUE.dose); mark("resid", vals.resid !== 0); mark("inj", vals.inj !== TRUE.inj);
-    $("whatif-result").innerHTML = `SUVmax <b>${fmt(suv)}</b> <span class="note">with the header: ${fmt(D.hot.bqml * F_TRUE)}</span>` +
+    $("whatif-result").innerHTML = `SUVmax <b>${fmt(suv)}</b> <span class="note">with the DICOM header: ${fmt(D.hot.bqml * F_TRUE)}</span>` +
       (Math.abs(ch) > 0.05 ? ` &nbsp; <b style="color:var(--orange);font-size:17px">${ch > 0 ? "+" : ""}${ch.toFixed(0)} %</b>` : "");
   }
   fillInputs();
 
   // ---------- steps ----------
-  const STEPS = ["image", "header", "whatif"], NAMES = { image: "the image", header: "the header", whatif: "what if?" };
+  const STEPS = ["image", "header", "whatif"], NAMES = { image: "the image", header: "the DICOM header", whatif: "what if?" };
   const steppers = {};
   function showFrom(li) {   // messages with data-show-from="<task id>" appear from that task on
     const box = li.closest(".tasks"), items = [...box.querySelectorAll(":scope > ol > li")], pos = items.indexOf(li);
