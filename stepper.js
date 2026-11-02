@@ -4,7 +4,8 @@
  *                                                                so they stay put whatever the length of the task text)
  *     box        a .tasks element: an <h2> and an <ol> of <li>.
  *                <li class="intro" data-spot="id1,id2"> is a "start here" card: it is not numbered, and it dims the
- *                page and scrolls to (and outlines) the elements it names.
+ *                page and scrolls to (and outlines) the elements it names. On page load and tab switch it dims and
+ *                outlines without scrolling.
  *                <li data-spot="..."> on a task scrolls to and outlines those elements, without dimming.
  *                <li class="extra"> is a bonus task.
  *     key        localStorage key for the position (per page and group).
@@ -48,6 +49,7 @@
 @media (prefers-reduced-motion: no-preference) { .spot { animation: stepper-spot 1.6s ease-in-out 3; } }
 @keyframes stepper-spot { 50% { outline-color: transparent; } }
 .stepper-dim { position: fixed; inset: 0; background: rgba(0, 0, 0, .55); z-index: 40; pointer-events: none; }
+.tasks.stepper.spot-card { position: relative; z-index: 41; }   /* the card stays bright above the dimming (sticky wins below) */
 @media (min-height: 640px) and (min-width: 700px) {
   .tasks.stepper.sticky { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 42; box-shadow: 0 6px 18px rgba(0, 0, 0, .18); }
 }`;
@@ -67,14 +69,19 @@
     history.replaceState(null, "", location.pathname + (tab ? "#" + tab.dataset.tab : location.hash));   // drop ?task, so a reload does not jump again
   }
 
-  function clear() { document.querySelectorAll(".spot").forEach(e => e.classList.remove("spot")); dim.hidden = true; }
+  function clear() {
+    document.querySelectorAll(".spot, .spot-card").forEach(e => e.classList.remove("spot", "spot-card"));
+    dim.hidden = true;
+  }
 
   // outline els; with dimming = true also dim the rest. Scroll so they sit below the card (or keep their bottom in view).
   function spotlight(card, els, { dimming, scroll }) {
+    if (card.offsetParent === null) return;   // a card on a hidden tab must not clear the visible tab's outline
     clear();
-    if (!els.length || card.offsetParent === null) return;
+    if (!els.length) return;
     els.forEach(e => { void e.offsetWidth; e.classList.add("spot"); });
     dim.hidden = !dimming;
+    if (dimming) card.classList.add("spot-card");
     if (!scroll) return;
     const rects = els.map(e => e.getBoundingClientRect());
     const top = Math.min(...rects.map(r => r.top)), bottom = Math.max(...rects.map(r => r.bottom));
@@ -114,7 +121,7 @@
       next.disabled = i === n - 1 && !opt.next;
       store.set(opt.key, String(i));
       const els = (items[i].dataset.spot || "").split(",").filter(Boolean).map(id => document.getElementById(id)).filter(Boolean);
-      spotlight(box, els, { dimming: intro && !quiet, scroll: !quiet });
+      spotlight(box, els, { dimming: intro, scroll: !quiet });   // quiet (page load, tab switch): no scrolling, but still dim
       if (opt.onShow) opt.onShow(items[i]);
     }
     prev.addEventListener("click", () => { if (pos > 0) go(pos - 1); else if (opt.prev) { clear(); opt.prev(); } });

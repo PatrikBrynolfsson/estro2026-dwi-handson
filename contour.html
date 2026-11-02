@@ -230,7 +230,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
           <li><input type="checkbox" id="c3-2"><label for="c3-2">How well do your two outlines overlap? (Dice: 1 = identical, 0 = no overlap.)</label></li>
           <li><input type="checkbox" id="c3-3"><label for="c3-3">Press <b>Flick T2w ↔ DWI</b> and watch the back edge of the prostate, next to the air-filled balloon in the rectum. Does it move?</label></li>
           <li><input type="checkbox" id="c3-4"><label for="c3-4">Measure how far it moves with the <b>ruler</b> (drag on the image). Write it down.</label></li>
-          <li class="extra"><input type="checkbox" id="c3-5"><label for="c3-5">Tick "Show the prostate outline from T2w" and look at the DWI. Where does the DWI prostate end?</label></li>
+          <li class="extra"><input type="checkbox" id="c3-5"><label for="c3-5">Tick "Show the prostate outline from T2w" (blue) and look at the DWI. At the back, next to the balloon, where does the prostate on DWI end: inside the blue line, on it, or behind it? Check a few slices.</label></li>
         </ol></div>
         <div class="table-box"><table><tbody id="compare-table"></tbody></table></div>
         <label class="toggle" for="show-prostate"><input type="checkbox" id="show-prostate"> Show the prostate outline from T2w</label>
@@ -273,8 +273,8 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
   </footer>
 </div>
 
-<script src="contour_case.js?v=efae2162"></script>
-<script src="stepper.js?v=b8d2cbf4"></script>
+<script src="contour_case.js?v=58bcf87b"></script>
+<script src="stepper.js?v=b8ba56c1"></script>
 <script>
 (() => {
   "use strict";
@@ -589,7 +589,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
   }).catch(() => { document.querySelector(".bench").innerHTML = `<div class="message">The images could not be decoded. Try another browser.</div>`; });
 })();
 </script>
-<script src="answers.js?v=6534bd8f"></script>
+<script src="answers.js?v=1b28988c"></script>
 
 <script src="review/review.js"></script>
 </body>
