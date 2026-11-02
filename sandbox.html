@@ -256,14 +256,18 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
     <div class="tasks" data-step="2">
       <h2>Tasks <span class="note">a simulated tumour: the brain scan has none</span></h2>
       <ol>
-        <li><input type="checkbox" id="t2-1"><label for="t2-1">Predict first: write down the four ADC values (b 0 &amp; 800 and b 200 &amp; 800, before and after treatment), then lock them.</label></li>
-        <li><input type="checkbox" id="t2-2"><label for="t2-2">Press <b>Show the answers</b>. Which b-values see a change?</label></li>
+        <li><input type="checkbox" id="t2-1"><label for="t2-1">Predict first: after treatment, does the ADC fall, stay the same or rise? Guess for b 0 &amp; 800 and for b 200 &amp; 800, then lock your guesses. No calculation needed.</label></li>
+        <li><input type="checkbox" id="t2-2"><label for="t2-2">Press <b>Show the answers</b>. Were your guesses right?</label></li>
         <li><input type="checkbox" id="t2-3"><label for="t2-3">Is the change bigger than the 11 % QIBA limit for brain? Would you call it a response, or no response?</label></li>
         <li class="extra"><input type="checkbox" id="t2-4"><label for="t2-4">Look at the b 50 &amp; 800 row. Is a lowest b-value of 50 enough?</label></li>
       </ol>
     </div>
     <div class="bench plot-left">
       <div class="figure">
+        <div class="ctrl" style="flex-direction:row;align-items:center;flex-wrap:wrap;gap:10px">
+          <span class="ctrl-label">Show the curves for</span>
+          <div class="chips" id="b2-chips"></div>
+        </div>
         <svg class="plot" id="plot2" viewBox="0 0 640 390" role="img" aria-label="Signal before and after treatment"></svg>
         <div class="legend">
           <span><i class="swatch dash" style="border-color:var(--guide)"></i>before (f = 0.25)</span>
@@ -277,10 +281,6 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
       <div class="panel">
         <div class="message">A tumour with a rich blood supply. Treatment shuts down part of it: <b>f falls from 0.25 to 0.08</b>.
           The cells are untouched, so the tissue diffusion <b>D stays at 1.0</b>.</div>
-        <div class="ctrl">
-          <span class="ctrl-label">Show the curves for</span>
-          <div class="chips" id="b2-chips"></div>
-        </div>
         <div class="table-box">
           <table>
             <thead><tr><th>b-values</th><th class="num">before</th><th class="num">after</th><th class="num">change</th></tr></thead>
@@ -290,6 +290,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
         <div class="row">
           <button class="primary" id="reveal" type="button">Show the answers</button>
           <button class="quiet" id="hide" type="button" hidden>Hide again</button>
+          <span class="note" id="reveal-hint" hidden>Guess first. The answers come in task 2.</span>
         </div>
         <div class="message" id="msg2" hidden></div>
       </div>
@@ -405,6 +406,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
 
   // ---------- tasks: one at a time (stepper.js) ----------
   const TAB_NAMES = { images: "Same brain, different ADC", treatment: "Treatment", noise: "Noise" };
+  let t2guess = false, t2ready = false;   // Treatment, task 1: guess first, so the answers stay hidden
   TABS.forEach((tab, ti) => {
     const box = document.querySelector(`#tab-${tab} .tasks`);
     if (!box) return;
@@ -413,6 +415,10 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
       prev: ti > 0 ? () => { location.hash = TABS[ti - 1]; } : null,
       next: ti < TABS.length - 1 ? () => { location.hash = TABS[ti + 1]; window.scrollTo({ top: 0 }); } : () => { location.href = "mr.html"; },
       nextLabel: ti < TABS.length - 1 ? `Next: ${TAB_NAMES[TABS[ti + 1]]} →` : "Done: back to all blocks",
+      onShow: tab === "treatment" ? li => {
+        t2guess = !!li.querySelector("#t2-1");
+        if (t2ready) { if (t2guess) st2.revealed = false; draw2(); }
+      } : undefined,
     });
   });
 
@@ -765,7 +771,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
       if (!revealed) return `<tr><td class="mono">${b} &amp; 800${stretch}</td><td class="hidden-val">?</td><td class="hidden-val">?</td><td class="hidden-val">?</td></tr>`;
       return `<tr><td class="mono">${b} &amp; 800${stretch}</td><td class="num">${k(a0_)}</td><td class="num">${k(a1_)}</td><td class="num"><b>${pct(a1_ / a0_ - 1)}</b></td></tr>`;
     }).join("");
-    $("reveal").hidden = revealed; $("hide").hidden = !revealed;
+    $("reveal").hidden = revealed || t2guess; $("hide").hidden = !revealed; $("reveal-hint").hidden = !t2guess;
     $("msg2").hidden = !revealed; $("bars").hidden = !revealed;
     if (revealed) {
       const c0 = adc(0, 800, F_AFTER) / adc(0, 800, F_BEFORE) - 1;
@@ -799,7 +805,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
     }
     text(svg, m.l - 10, 12, "QIBA true-change limit:", "font-size:12px", "end");
   }
-  draw2();
+  draw2(); t2ready = true;
 
   // ---------- STEP 3a: real IVIM maps ----------
   const MAPS = {
@@ -906,7 +912,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
   scan(1);
 })();
 </script>
-<script src="answers.js?v=1b28988c"></script>
+<script src="answers.js?v=90e1b5cd"></script>
 
 <script src="review/review.js"></script>
 </body>
