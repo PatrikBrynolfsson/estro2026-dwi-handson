@@ -310,11 +310,11 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
         <li><input type="checkbox" id="t3-1"><label for="t3-1">Predict first: the same IVIM model was fitted in every voxel. Which map will show clear anatomy, and which will look like noise?</label></li>
         <li><input type="checkbox" id="t3-2"><label for="t3-2">Switch between <b>D</b>, <b>f</b> and <b>D*</b>. Were you right?</label></li>
         <li class="extra"><input type="checkbox" id="t3-3"><label for="t3-3">Click the CSF behind the midbrain. What blood fraction f does the fit report? Does that make sense?</label></li>
-        <li class="extra"><input type="checkbox" id="t3-4"><label for="t3-4">Scroll down to “Try it”. Keep the noise at <b>SNR 50</b> (the default) and press <b>Scan 10 times</b>. Which of D, f and D* stay close to their true value (the black tick)?</label></li>
+        <li class="extra"><input type="checkbox" id="t3-4"><label for="t3-4">Now one simulated voxel replaces the maps. Keep the noise at <b>SNR 50</b> (the default) and press <b>Scan 10 times</b>. Which of D, f and D* stay close to their true value (the black tick)?</label></li>
         <li class="extra"><input type="checkbox" id="t3-5"><label for="t3-5">Now set the noise to <b>SNR 20</b> (about one voxel) and press <b>Scan 10 times</b> again. Which stay close now?</label></li>
       </ol>
     </div>
-    <div class="bench">
+    <div class="bench" id="maps3">
       <div class="figure">
         <div class="ctrl">
           <span class="ctrl-label">IVIM map (fitted voxel by voxel)</span>
@@ -331,13 +331,12 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
           <span class="ctrl-label" id="ro3-label">Click a point in the map</span>
           <span class="vs mono" id="ro3"></span>
         </div>
-        <div class="message"><b>D</b> looks like an ADC map: smooth, clear anatomy. <b>f</b> is speckled. <b>D*</b> is mostly
+        <div class="message" id="msg3a" hidden><b>D</b> looks like an ADC map: smooth, clear anatomy. <b>f</b> is speckled. <b>D*</b> is mostly
           noise. And in CSF the fit says f ≈ 0.9, which makes no sense: the model breaks down where its assumptions do not
           hold. This is why IVIM maps are hard to use, and why studies of f (for example as a hypoxia marker) disagree.</div>
       </div>
     </div>
-    <hr class="divider">
-    <div class="bench plot-left">
+    <div class="bench plot-left" id="try3" hidden>
       <div class="figure">
         <h2>Try it: scan one voxel again and again</h2>
         <svg class="plot" id="plot3" viewBox="0 0 640 390" role="img" aria-label="Noisy signal and IVIM fit"></svg>
@@ -367,7 +366,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
         </div>
         <div class="note" id="nscans"></div>
         <div class="message" id="msg3" hidden>The same voxel, scanned again and again: D stays close to 1.0, f wanders, and
-          D* is all over the place. The maps above show the same thing across a whole brain.</div>
+          D* is all over the place. The maps you saw show the same thing across a whole brain.</div>
       </div>
     </div>
   </section>
@@ -423,6 +422,11 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
       onShow: tab === "treatment" ? li => {
         t2guess = !!li.querySelector("#t2-1") || li.classList.contains("intro");   // no answers before the guess
         if (t2ready) { if (t2guess) st2.revealed = false; draw2(); }
+      } : tab === "noise" ? li => {   // tasks 1-3: the real maps; bonus tasks 4-5: only the simulated voxel
+        const id = li.querySelector("input")?.id, sim = id === "t3-4" || id === "t3-5";
+        $("maps3").hidden = sim; $("try3").hidden = !sim;
+        $("msg3a").hidden = sim || id === "t3-1";   // the map answer only after the prediction
+        window.dispatchEvent(new Event("resize"));   // redraw whatever just appeared
       } : undefined,
     });
   });
