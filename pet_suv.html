@@ -66,7 +66,7 @@ nav a:hover { color: var(--ink); }
 .viewer.light .side { color: #5f6672; }
 .viewer .side-r { left: 8px; } .viewer .side-l { right: 8px; }
 .vslider { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
-.vslider input { writing-mode: vertical-lr; direction: ltr; /* slice 0 (head; front on the coronal) at the top: up = towards the head */ flex: 1; min-height: 120px; width: 26px; margin: 0; accent-color: var(--teal); }
+.vslider input { writing-mode: vertical-lr; direction: rtl; /* max at the top, track fills from the bottom; the page reverses the value so the top is slice 0 (head; front on the coronal) */ flex: 1; min-height: 120px; width: 26px; margin: 0; accent-color: var(--teal); }
 .vslider .mono { font-size: 13px; color: var(--ink); white-space: nowrap; }
 .cbar { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
 .cbar .bar { position: relative; flex: 1; min-height: 120px; display: flex; gap: 4px; }
@@ -284,8 +284,8 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
 </div>
 
 <script src="pet_suv.js?v=4ba5bff5"></script>
-<script src="pet_view.js?v=0bde9340"></script>
-<script src="stepper.js?v=0b21f326"></script>
+<script src="pet_view.js?v=aee23deb"></script>
+<script src="stepper.js?v=73fdfe1c"></script>
 <script>window.WORKSHEET = "pet";</script>
 <script src="answers.js?v=b05232ea"></script>
 <script>
@@ -363,12 +363,12 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
   // one slider: the axial slice (head at the top) or the coronal slice (front at the top)
   function syncSlider() {
     const cor = st.view === "coronal";
-    sl.max = String((cor ? C.n_slices : A.n_slices) - 1); sl.value = String(cor ? st.cor : st.slice);
+    sl.max = String((cor ? C.n_slices : A.n_slices) - 1); sl.value = String(+sl.max - (cor ? st.cor : st.slice));   // reversed: fills from the bottom, top = slice 0
     $("sl-top").textContent = cor ? "front" : "head"; $("sl-bot").textContent = cor ? "back" : "feet";
     sl.setAttribute("aria-label", cor ? "Coronal slice (top = front)" : "Slice (top = towards the head)");
   }
   syncSlider();
-  sl.addEventListener("input", () => { if (st.view === "coronal") st.cor = +sl.value; else st.slice = +sl.value; st.roi = null; st.point = null; draw(); });
+  sl.addEventListener("input", () => { const k = +sl.max - +sl.value; if (st.view === "coronal") st.cor = k; else st.slice = k; st.roi = null; st.point = null; draw(); });
 
   // ---------- colour ----------
   function hot(t) {         // black -> red -> yellow -> white

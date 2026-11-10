@@ -278,13 +278,14 @@
         ctx.moveTo(x - 10, y); ctx.lineTo(x - 3, y); ctx.moveTo(x + 3, y); ctx.lineTo(x + 10, y);
         ctx.moveTo(x, y - 10); ctx.lineTo(x, y - 3); ctx.moveTo(x, y + 3); ctx.lineTo(x, y + 10); ctx.stroke();
       }
-      // one slider: axial slices (head at the top) or coronal slices (front at the top)
+      // one slider: axial slices (head at the top) or coronal slices (front at the top). Its value is reversed
+      // (value = last - slice) so the track fills from the bottom while the top stays slice 0.
       const cor = st.view === "coronal", k = cor ? st.corRow : st.slice, nk = cor ? D.rows : D.ns;
       E.cbarBox.style.visibility = st.img === "ct" ? "hidden" : "visible";
       const name = { pet: "PET", ct: "CT", fused: "PET on CT", change: "Change" }[st.img];
       E.tag.textContent = (st.label ? st.label + " · " : "") + `${name} · ${cor ? "coronal · " : ""}slice ${k + 1} of ${nk}`;
       if (E.sliceVal) E.sliceVal.textContent = `${k + 1} / ${nk}`;
-      if (E.slider) { E.slider.max = String(nk - 1); E.slider.value = String(k); E.slider.setAttribute("aria-label", cor ? "Coronal slice (top = front)" : "Slice (top = towards the head)"); }
+      if (E.slider) { E.slider.max = String(nk - 1); E.slider.value = String(nk - 1 - k); E.slider.setAttribute("aria-label", cor ? "Coronal slice (top = front)" : "Slice (top = towards the head)"); }
       if (ends.length === 2) { ends[0].textContent = cor ? "front" : endText[0]; ends[1].textContent = cor ? "back" : endText[1]; }
       drawBar(); readout();
       if (E.viewer && E.viewer.offsetParent !== null) displayFor(st.img);   // the shown viewer sets which display controls apply
@@ -351,7 +352,7 @@
     cv.addEventListener("pointerup", up);
     cv.addEventListener("pointercancel", () => { st.drag = null; if (api.pointer) api.pointer("cancel", [0, 0]); });
     if (E.slider) {
-      E.slider.addEventListener("input", () => { if (st.view === "coronal") st.corRow = +E.slider.value; else st.slice = +E.slider.value; st.roi = null; st.point = null; draw(); });
+      E.slider.addEventListener("input", () => { const k = +E.slider.max - +E.slider.value; if (st.view === "coronal") st.corRow = k; else st.slice = k; st.roi = null; st.point = null; draw(); });
     }
     return api;
   }

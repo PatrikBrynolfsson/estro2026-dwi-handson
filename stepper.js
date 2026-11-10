@@ -5,7 +5,9 @@
  *     box        a .tasks element: an <h2> and an <ol> of <li>.
  *                <li class="intro" data-spot="id1,id2"> is a "start here" card: it is not numbered, and it dims the
  *                page and scrolls to (and outlines) the elements it names. On page load and tab switch it dims and
- *                outlines without scrolling.
+ *                outlines without scrolling. The start cards show the first time a step is opened in this browser;
+ *                after that (changed 2026-11-10) the step opens at task 1, Previous/Next skip them, and they open only
+ *                from the "How to read this page" button or their (square) dots.
  *                <li data-spot="..."> on a task scrolls to and outlines those elements, without dimming.
  *                <li class="extra"> is a bonus task.
  *     key        sessionStorage key for the position (per page and step), so a reload (or the browser's Back button)
@@ -48,6 +50,10 @@
 .step-nav .dots button { width: 12px; height: 12px; padding: 0; border-radius: 50%; background: var(--line); border: 0; }
 .step-nav .dots button.seen { background: var(--guide); }
 .step-nav .dots button[aria-current="true"] { background: var(--teal); transform: scale(1.25); }
+.step-nav .dots button.intro-dot { border-radius: 2px; width: 10px; height: 10px; }
+.step-nav .dots button.intro-dot.last { margin-right: 8px; }
+.tasks.stepper > h2 { display: flex; align-items: center; gap: 4px 12px; flex-wrap: wrap; }
+.tasks.stepper > h2 .intro-link { margin-left: auto; font-size: 13px; font-weight: normal; padding: 3px 10px; }
 .spot { outline: 3px solid var(--orange); outline-offset: 5px; border-radius: 8px; position: relative; z-index: 41; background: var(--bg); }
 @media (prefers-reduced-motion: no-preference) { .spot { animation: stepper-spot 1.6s ease-in-out 3; } }
 @keyframes stepper-spot { 50% { outline-color: transparent; } }
@@ -61,6 +67,10 @@
   const store = {
     get: k => { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
     set: (k, v) => { try { sessionStorage.setItem(k, v); } catch (e) { /* storage blocked */ } },
+  };
+  const seenStore = {   // start cards seen: kept in this browser (localStorage), so later visits skip them
+    get: k => { try { return localStorage.getItem("introseen:" + location.pathname + ":" + k) === "1"; } catch (e) { return false; } },
+    set: k => { try { localStorage.setItem("introseen:" + location.pathname + ":" + k, "1"); } catch (e) { /* storage blocked */ } },
   };
   // Restore the stored card only on a reload or the browser's Back/Forward; any other arrival starts at card 1.
   const navType = (() => { try { const e = performance.getEntriesByType("navigation")[0]; return e ? e.type : ""; } catch (e) { return ""; } })();
@@ -113,11 +123,15 @@
     nav.innerHTML = `<button type="button" class="quiet" data-prev>← Previous</button><span class="dots"></span><button type="button" class="primary" data-next></button>`;
     title.after(nav);
     const dots = nav.querySelector(".dots"), prev = nav.querySelector("[data-prev]"), next = nav.querySelector("[data-next]");
+    let seen = intros > 0 && seenStore.get(opt.key);
+    const first = () => (seen ? intros : 0);
+    let viewedIntro = false;   // a start card was shown since entering this step: Previous from task 1 goes back to it   // where the step starts: task 1 once the start cards were seen
     items.forEach((_, i) => {
-      const d = document.createElement("button"); d.type = "button"; d.setAttribute("aria-label", "Item " + (i + 1));
+      const d = document.createElement("button"); d.type = "button"; d.setAttribute("aria-label", i < intros ? "How to read this page, " + (i + 1) : "Task " + (i + 1 - intros));
+      if (i < intros) d.classList.add("intro-dot"); if (i === intros - 1) d.classList.add("last");
       d.addEventListener("click", () => go(i)); dots.appendChild(d);
     });
-    let pos = restore ? Math.min(n - 1, Math.max(0, +(store.get(opt.key) || 0))) : 0;
+    let pos = restore && store.get(opt.key) !== null ? Math.min(n - 1, Math.max(0, +store.get(opt.key))) : first();
     const me = {};
     function go(i, quiet = false) {
       pos = i;
@@ -125,9 +139,12 @@
       items.forEach((li, j) => { li.hidden = j !== i; });
       [...dots.children].forEach((d, j) => { d.setAttribute("aria-current", String(j === i)); if (j <= i) d.classList.add("seen"); });
       const intro = items[i].classList.contains("intro");
+      if (intro) viewedIntro = true;
+      if (!intro && intros && !seen) { seen = true; seenStore.set(opt.key); }
       title.innerHTML = intro ? `Start here · how to read this page (${i + 1} of ${intros})`
-        : `Task ${i + 1 - intros} of ${nTasks}` + (items[i].classList.contains("extra") ? ` <span class="note" style="display:inline">for fast pairs</span>` : "");
-      prev.disabled = i === 0 && !opt.prev;
+        : `<span>Task ${i + 1 - intros} of ${nTasks}</span>` + (items[i].classList.contains("extra") ? ` <span class="note" style="display:inline">for fast pairs</span>` : "")
+          + (intros ? `<button type="button" class="quiet intro-link" data-intro>How to read this page</button>` : "");
+      prev.disabled = (i === 0 || (i === intros && !viewedIntro)) && !opt.prev;
       next.textContent = intro && i === intros - 1 ? "Start the tasks →" : i < n - 1 ? "Next →" : (opt.nextLabel || "Done");
       next.disabled = i === n - 1 && !opt.next;
       store.set(opt.key, String(i));
@@ -135,7 +152,9 @@
       spotlight(box, els, { dimming: intro, scroll: !quiet });   // quiet (page load, tab switch): no scrolling, but still dim
       if (opt.onShow) opt.onShow(items[i]);
     }
-    prev.addEventListener("click", () => { if (pos > 0) go(pos - 1); else if (opt.prev) { clear(); enterLast = Date.now(); opt.prev(); } });
+    title.addEventListener("click", e => { if (e.target.closest("[data-intro]")) go(0); });
+    // Previous from task 1 leaves the step once the start cards were seen (they open only on request)
+    prev.addEventListener("click", () => { if (pos > 0 && !(pos === intros && !viewedIntro)) go(pos - 1); else if (opt.prev) { clear(); enterLast = Date.now(); opt.prev(); } });
     next.addEventListener("click", () => { if (pos < n - 1) go(pos + 1); else if (opt.next) { clear(); opt.next(); } });
     const wantPos = wantEl ? items.findIndex(li => li.contains(wantEl)) : -1;
     if (wantPos >= 0) pos = wantPos;
@@ -151,7 +170,8 @@
       if (booting || active === me) { go(pos, true); return; }
       const back = Date.now() - enterLast < 2000;
       enterLast = 0;
-      go(back ? n - 1 : 0, true);
+      viewedIntro = false;
+      go(back ? n - 1 : first(), true);
     }
     if (booting) setTimeout(() => { booting = false; }, 0);
     return Object.assign(me, { go: (i, quiet) => go(i, quiet), refresh });
