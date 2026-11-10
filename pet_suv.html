@@ -9,7 +9,7 @@
 
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
-/* PET Block A. Same shell as the DWI pages: the image on the left, the step's tasks on the right, steps as tabs.
+/* PET Block D. Same shell as the DWI pages: the image on the left, the step's tasks on the right, steps as tabs.
    Real images and the real DICOM header of one patient; nothing simulated on this page. */
 :root {
   --bg: #ffffff; --surface: #f4f6f9; --line: #dde2ea; --ink: #1a1a1a; --muted: #5f6672; --guide: #9aa0a6;
@@ -145,7 +145,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
 <div class="wrap">
   <header>
     <a class="back" href="pet.html">← All blocks</a>
-    <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · PET · Block A</div>
+    <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · PET · Block D</div>
     <h1>SUV from the DICOM header</h1>
     <p class="lede">The woman of 58 with lung cancer from the other blocks. Here are her real images and her real DICOM header, not a simulation.
       The viewer shows SUV, but the scanner never stored an SUV: it is calculated from five numbers in the DICOM header.
@@ -285,9 +285,9 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
 
 <script src="pet_suv.js?v=4ba5bff5"></script>
 <script src="pet_view.js?v=0bde9340"></script>
-<script src="stepper.js?v=b8ba56c1"></script>
+<script src="stepper.js?v=0b21f326"></script>
 <script>window.WORKSHEET = "pet";</script>
-<script src="answers.js?v=d221bdab"></script>
+<script src="answers.js?v=b05232ea"></script>
 <script>
 (() => {
   "use strict";
@@ -613,7 +613,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
     steppers[step] = Stepper.setup(box, {
       key: "taskpos-petsuv-" + step, sticky: false, onShow: showFrom,
       prev: si > 0 ? () => { location.hash = STEPS[si - 1]; } : null,
-      // Block A is the last block (order C, D, B, A): it ends on the answers page, for the debrief
+      // Block D is the last block (order A, B, break, C, D): it ends on the answers page, for the debrief
       next: si < STEPS.length - 1 ? () => { location.hash = STEPS[si + 1]; window.scrollTo({ top: 0 }); } : () => { location.href = "pet_answers.html"; },
       nextLabel: si < STEPS.length - 1 ? `Next: ${NAMES[STEPS[si + 1]]} →` : "Done: review my answers →",
     });

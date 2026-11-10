@@ -15,161 +15,176 @@
   "use strict";
   const ADC = "× 10⁻³ mm²/s";
   const DWI_BLOCKS = {
-    A: { title: "Block A · ADC & IVIM sandbox", page: "sandbox.html" },
-    B: { title: "Block B · Has the tumour responded?", page: "prostate.html" },
-    C: { title: "Block C · Contouring on DWI", page: "contour.html" },
+    A: { title: "Block A · Has the tumour responded?", page: "prostate.html" },
+    B: { title: "Block B · Contouring on DWI", page: "contour.html" },
+    C: { title: "Block C · ADC & IVIM sandbox", page: "sandbox.html" },
   };
-  const DWI_Q = [   // in the order the pairs do the blocks: B, C, A (changed 2026-11-10); the letters stay
-    // ---- Block B
-    { id: "b-2", block: "B", group: "Prostate, two scans 13 days apart", no: "2", q: "Expert ROI drawn on ADC: mean ADC",
+  // In the order the pairs do the blocks: A prostate, B contour, C sandbox. Renamed 2026-11-10 so the letters follow the
+  // order (before: B, C, A). Block letters are not stored; question ids keep their old prefixes (b- prostate, c- contour,
+  // t- sandbox) so saved answers survive.
+  const DWI_Q = [
+    // ---- Block A (prostate.html)
+    { id: "b-2", block: "A", group: "Prostate, two scans 13 days apart", no: "2", q: "Expert ROI drawn on ADC: mean ADC",
       fields: [{ k: "s1", type: "num", label: "Scan 1", unit: ADC }, { k: "s2", type: "num", label: "Scan 2", unit: ADC },
         { k: "ch", type: "num", label: "Change", unit: "%" }] },
-    { id: "b-3", block: "B", group: "Prostate, two scans 13 days apart", no: "3", q: "Change the ROI: values on scan 1",
+    { id: "b-3", block: "A", group: "Prostate, two scans 13 days apart", no: "3", q: "Change the ROI: values on scan 1",
       fields: [{ k: "t", type: "grid", rows: ["Expert, on ADC", "Grown 2 mm", "Shrunk 2 mm", "Expert, on T2w"], cols: ["Mean", "Median", "10th pct"], unit: ADC },
         { k: "least", type: "choice", label: "Moves least", options: ["Mean", "Median", "10th percentile"] }] },
-    { id: "b-4", block: "B", group: "Prostate, two scans 13 days apart", no: "4", q: "Before treatment, then two weeks in: has the tumour responded?",
-      fields: [{ k: "pred", type: "choice", options: ["Yes", "No", "Cannot tell"], predict: true }, { k: "why", type: "text", label: "Why", predict: true }] },
-    { id: "b-5", block: "B", group: "Prostate, two scans 13 days apart", no: "5", q: "Bonus: does your conclusion depend on which ROI you used?",
+    { id: "b-4", block: "A", group: "Prostate, two scans 13 days apart", no: "4", q: "Before treatment, then two weeks in: has the tumour responded?",
+      then: "Locked. Now scroll down to “Task 4” on this page, press the same answer, then “What happened between the scans?”.",
+      fields: [{ k: "pred", type: "choice", options: ["Response", "No response", "Can't tell"], predict: true,
+        alias: { "Yes": "Response", "No": "No response", "Cannot tell": "Can't tell" } },   // 2026-11-10: was Yes / No / Cannot tell
+        { k: "why", type: "text", label: "Why", predict: true }] },
+    { id: "b-5", block: "A", group: "Prostate, two scans 13 days apart", no: "5", q: "Bonus: does your conclusion depend on which ROI you used?",
       fields: [{ k: "a", type: "text" }] },
-    // ---- Block C
-    { id: "c1-3", block: "C", group: "Contouring", no: "1", q: "Your outline on T2w", fields: [{ k: "v", type: "num", label: "Volume", unit: "cm³" }] },
-    { id: "c2-1", block: "C", group: "Contouring", no: "2", q: "On DWI, your outline will be ...",
+    // ---- Block B (contour.html)
+    { id: "c1-3", block: "B", group: "Contouring", no: "1", q: "Your outline on T2w", fields: [{ k: "v", type: "num", label: "Volume", unit: "cm³" }] },
+    { id: "c2-1", block: "B", group: "Contouring", no: "2", q: "On DWI, your outline will be ...",
+      then: "Locked. Now press Next → and draw the tumour on the DWI.",
       fields: [{ k: "pred", type: "choice", options: ["bigger", "the same", "smaller"], predict: true }] },
-    { id: "c2-3", block: "C", group: "Contouring", no: "2", q: "Your outline on DWI", fields: [{ k: "v", type: "num", label: "Volume", unit: "cm³" }] },
-    { id: "c3-1", block: "C", group: "Contouring", no: "3", q: "Was your prediction right?", fields: [{ k: "a", type: "choice", options: ["Yes", "No"] }] },
-    { id: "c3-2", block: "C", group: "Contouring", no: "3", q: "Overlap of your two outlines", fields: [{ k: "d", type: "num", label: "Dice" }] },
-    { id: "c3-4", block: "C", group: "Contouring", no: "3", q: "Shift at the back of the prostate (ruler)", fields: [{ k: "mm", type: "num", label: "Ruler", unit: "mm" }] },
-    { id: "c3-5", block: "C", group: "Contouring", no: "3", q: "Bonus: at the back, where does the prostate on DWI end?",
+    { id: "c2-3", block: "B", group: "Contouring", no: "2", q: "Your outline on DWI", fields: [{ k: "v", type: "num", label: "Volume", unit: "cm³" }] },
+    { id: "c3-1", block: "B", group: "Contouring", no: "3", q: "Was your prediction right?", fields: [{ k: "a", type: "choice", options: ["Yes", "No"] }] },
+    { id: "c3-2", block: "B", group: "Contouring", no: "3", q: "Overlap of your two outlines", fields: [{ k: "d", type: "num", label: "Dice" }] },
+    { id: "c3-4", block: "B", group: "Contouring", no: "3", q: "Shift at the back of the prostate (ruler)", fields: [{ k: "mm", type: "num", label: "Ruler", unit: "mm" }] },
+    { id: "c3-5", block: "B", group: "Contouring", no: "3", q: "Bonus: at the back, where does the prostate on DWI end?",
       fields: [{ k: "where", type: "choice", options: ["Inside the blue line", "On the blue line", "Behind it, towards the balloon"] }] },
-    { id: "c4-1", block: "C", group: "Discuss", no: "1", q: "The ADC outline as GTV, boost volume, or guide only?",
+    { id: "c4-1", block: "B", group: "Discuss", no: "1", q: "The ADC outline as GTV, boost volume, or guide only?",
       fields: [{ k: "use", type: "choice", options: ["GTV", "Boost volume", "Guide only"] }, { k: "why", type: "text", label: "Why" }] },
-    { id: "c4-2", block: "C", group: "Discuss", no: "2", q: "Margin that would cover the shift you measured", fields: [{ k: "mm", type: "num", label: "Margin", unit: "mm" }] },
-    { id: "c4-3", block: "C", group: "Discuss", no: "3", q: "Would distortion correction or registration remove the shift? What would you check?",
+    { id: "c4-2", block: "B", group: "Discuss", no: "2", q: "Margin that would cover the shift you measured", fields: [{ k: "mm", type: "num", label: "Margin", unit: "mm" }] },
+    { id: "c4-3", block: "B", group: "Discuss", no: "3", q: "Would distortion correction or registration remove the shift? What would you check?",
       fields: [{ k: "a", type: "long" }] },
-    // ---- Block A, tab 1
-    { id: "t1-1", block: "A", group: "Tab 1 · Same brain, different ADC", no: "1", q: "Which parts lose the most signal between b 0 and b 100?",
+    // ---- Block C (sandbox.html), tab 1
+    { id: "t1-1", block: "C", group: "Tab 1 · Same brain, different ADC", no: "1", q: "Which parts lose the most signal between b 0 and b 100?",
       fields: [{ k: "a", type: "text" }] },
-    { id: "t1-2", block: "A", group: "Tab 1 · Same brain, different ADC", no: "2", q: "Brain tissue: ADC with each choice of b-values",
+    { id: "t1-2", block: "C", group: "Tab 1 · Same brain, different ADC", no: "2", q: "Brain tissue: ADC with each choice of b-values",
       fields: [{ k: "b0", type: "num", label: "b 0 & 800", unit: ADC }, { k: "b200", type: "num", label: "b 200 & 800", unit: ADC }] },
-    { id: "t1-3", block: "A", group: "Tab 1 · Same brain, different ADC", no: "3", q: "Which region has the biggest difference between ADC (b 0 & 800) and ADC (b 200 & 800)?",
+    { id: "t1-3", block: "C", group: "Tab 1 · Same brain, different ADC", no: "3", q: "Which region has the biggest difference between ADC (b 0 & 800) and ADC (b 200 & 800)?",
+      then: "Locked. Now check: choose 0 & 800 and the Difference map, pick each region and type the % below.",
       fields: [{ k: "pred", type: "choice", label: "My prediction", options: ["Brain tissue", "CSF", "Vessels + CSF"], predict: true },
         { k: "brain", type: "num", label: "Brain", unit: "%" }, { k: "csf", type: "num", label: "CSF", unit: "%" },
         { k: "ves", type: "num", label: "Vessels + CSF", unit: "%" }] },
-    { id: "t1-4", block: "A", group: "Tab 1 · Same brain, different ADC", no: "4", q: "Scan 1 b 0 & 800, follow-up b 200 & 800, tissue unchanged: what change would you measure, compared with the 11 % limit?",
-      fields: [{ k: "one", type: "num", label: "Measured change", unit: "%" }, { k: "lim", type: "text", label: "Compared with the 11 % limit" },
-        { k: "both", type: "text", label: "Both scans b 0 & 800" }] },
-    { id: "t1-5", block: "A", group: "Tab 1 · Same brain, different ADC", no: "5", q: "Bonus: why do the vessels in the Sylvian fissure light up?",
+    { id: "t1-4", block: "C", group: "Tab 1 · Same brain, different ADC", no: "4", q: "Scan 1 b 0 & 800, follow-up b 200 & 800, tissue unchanged: what change would you measure, and how much of the 11 % limit does it use?",
+      fields: [{ k: "one", type: "num", label: "Measured change", unit: "%" },   // 2026-11-10: text fields lim / both became choices share / same
+        { k: "share", type: "choice", label: "Share of the 11 % limit", options: ["Almost none", "About half", "All of it or more"] },
+        { k: "same", type: "choice", label: "If both scans used b 0 & 800, the change would be", options: ["About 0 %", "About 5 %", "About 10 %"] }] },
+    { id: "t1-5", block: "C", group: "Tab 1 · Same brain, different ADC", no: "5", q: "Bonus: why do the vessels in the Sylvian fissure light up?",
       fields: [{ k: "a", type: "text" }] },
-    // ---- Block A, tab 2
-    { id: "t2-1", block: "A", group: "Tab 2 · Treatment", no: "1", q: "After treatment, what happens to the ADC?",
+    // ---- Block C, tab 2
+    { id: "t2-1", block: "C", group: "Tab 2 · Treatment", no: "1", q: "After treatment (f 0.25 → 0.08, cells unchanged), what happens to the ADC?",
+      then: "Locked. Now press Next → (task 2), then Show the answers.",
       fields: [{ k: "p0", type: "choice", label: "b 0 & 800", options: ["Falls", "Stays the same", "Rises"], predict: true },
         { k: "p200", type: "choice", label: "b 200 & 800", options: ["Falls", "Stays the same", "Rises"], predict: true }] },
-    { id: "t2-2", block: "A", group: "Tab 2 · Treatment", no: "2", q: "Were your guesses right?",
+    { id: "t2-2", block: "C", group: "Tab 2 · Treatment", no: "2", q: "Were your guesses right?",
       fields: [{ k: "right", type: "choice", options: ["Both right", "One right", "Both wrong"] }] },
-    { id: "t2-3", block: "A", group: "Tab 2 · Treatment", no: "3", q: "Bigger than 11 %? Response or no response?",
-      fields: [{ k: "verdict", type: "choice", options: ["Response", "No response", "Depends on the b-values"] }, { k: "why", type: "text", label: "Why" }] },
-    { id: "t2-4", block: "A", group: "Tab 2 · Treatment", no: "4", q: "Bonus: is a lowest b-value of 50 enough?", fields: [{ k: "a", type: "text" }] },
-    // ---- Block A, tab 3
-    { id: "t3-1", block: "A", group: "Tab 3 · Noise", no: "1", q: "Which IVIM map shows clear anatomy, and which looks like noise?",
+    // 2026-11-10: the old task 3 (verdict: Response / No response / Depends) split in two, each with one right answer
+    { id: "t2-3", block: "C", group: "Tab 2 · Treatment", no: "3", q: "The scanner's ADC (b 0 & 800) falls 19 %. With the 11 % limit, a clinician would read it as ...",
+      fields: [{ k: "call", type: "choice", options: ["Real change: response", "Real change: no response", "No real change (inside 11 %)"] }] },
+    { id: "t2-3b", block: "C", group: "Tab 2 · Treatment", no: "4", q: "What really changed in the tumour? (Look at b 200 & 800.)",
+      fields: [{ k: "what", type: "choice", options: ["The cells (D)", "Only the blood (f)", "Both"] },
+        { k: "c200", type: "num", label: "Change with b 200 & 800", unit: "%" }] },
+    { id: "t2-4", block: "C", group: "Tab 2 · Treatment", no: "5", q: "Bonus: is a lowest b-value of 50 enough?", fields: [{ k: "a", type: "text" }] },
+    // ---- Block C, tab 3
+    { id: "t3-1", block: "C", group: "Tab 3 · Noise", no: "1", q: "Which IVIM map shows clear anatomy, and which looks like noise?",
+      then: "Locked. Now press Next → and switch between D, f and D*.",
       fields: [{ k: "clear", type: "choice", label: "Clear", options: ["D", "f", "D*"], predict: true },
         { k: "noise", type: "choice", label: "Noise", options: ["D", "f", "D*"], predict: true }] },
-    { id: "t3-2", block: "A", group: "Tab 3 · Noise", no: "2", q: "Were you right?", fields: [{ k: "a", type: "choice", options: ["Yes", "No"] }] },
-    { id: "t3-3", block: "A", group: "Tab 3 · Noise", no: "3", q: "Bonus: CSF behind the midbrain: blood fraction f",
+    { id: "t3-2", block: "C", group: "Tab 3 · Noise", no: "2", q: "Were you right?", fields: [{ k: "a", type: "choice", options: ["Yes", "No"] }] },
+    { id: "t3-3", block: "C", group: "Tab 3 · Noise", no: "3", q: "Bonus: CSF behind the midbrain: blood fraction f",
       fields: [{ k: "f", type: "num", label: "f =" }, { k: "sense", type: "text", label: "Does that make sense?" }] },
-    { id: "t3-4", block: "A", group: "Tab 3 · Noise", no: "4", q: "Bonus: SNR 50, 10 scans: which stay close to the true value?",
+    { id: "t3-4", block: "C", group: "Tab 3 · Noise", no: "4", q: "Bonus: SNR 50 (the default), 10 scans: which stay close to the true value?",
       fields: [{ k: "a", type: "multi", options: ["D", "f", "D*"] }] },
-    { id: "t3-5", block: "A", group: "Tab 3 · Noise", no: "5", q: "Bonus: SNR 20, 10 scans: which stay close to the true value?",
+    { id: "t3-5", block: "C", group: "Tab 3 · Noise", no: "5", q: "Bonus: SNR 20, 10 scans: which stay close to the true value?",
       fields: [{ k: "a", type: "multi", options: ["D", "f", "D*"] }] },
   ];
   const DWI_CHECKLIST = ["Which b-values?", "Whose ROI?", "Bigger than the repeatability?", "Geometrically trustworthy?"];
 
   // ---------------- PET group ----------------
-  const PET_BLOCKS = {
-    A: { title: "Block A · SUV from the DICOM header", page: "pet_suv.html" },
-    B: { title: "Block B · Attenuation correction", page: "pet_ac.html" },
-    C: { title: "Block C · Reconstruction and lesion size", page: "pet_recon.html" },
-    D: { title: "Block D · Contouring on PET", page: "pet_contour.html" },
+  const PET_BLOCKS = {   // letters follow the order of the day (re-lettered 2026-11-10); question ids keep the old letters (pc = recon, pd = contour, pb = AC, pa = SUV) so stored answers survive
+    A: { title: "Block A · Reconstruction and lesion size", page: "pet_recon.html" },
+    B: { title: "Block B · Contouring on PET", page: "pet_contour.html" },
+    C: { title: "Block C · Attenuation correction", page: "pet_ac.html" },
+    D: { title: "Block D · SUV from the DICOM header", page: "pet_suv.html" },
   };
   const PET_Q = [
-    // order on the day (2026-11-10): C, D, break, B, A; the answers page follows this order
-    // ---- Block C
-    { id: "pc1-1", block: "C", group: "1 · Iterations and filter", no: "1", q: "More iterations: what happens to ...",
+    // order on the day (2026-11-10): A, B, break, C, D; the answers page follows this order
+    // ---- Block A
+    { id: "pc1-1", block: "A", group: "1 · Iterations and filter", no: "1", q: "More iterations: what happens to ...",
       fields: [{ k: "max", type: "choice", label: "Tumour SUVmax", options: ["up", "same", "down"], predict: true },
         { k: "mean", type: "choice", label: "Liver mean", options: ["up", "same", "down"], predict: true },
         { k: "noise", type: "choice", label: "Noise", options: ["up", "same", "down"], predict: true }] },
-    { id: "pc1-2", block: "C", group: "1 · Iterations and filter", no: "2", q: "No filter: tumour SUVmax and liver noise",
+    { id: "pc1-2", block: "A", group: "1 · Iterations and filter", no: "2", q: "No filter: tumour SUVmax and liver noise",
       fields: [{ k: "t", type: "grid", rows: ["Tumour SUVmax", "Liver noise (SD %)"], cols: ["1 it", "3 it", "12 it"] }] },
-    { id: "pc1-3", block: "C", group: "1 · Iterations and filter", no: "3", q: "3 iterations, with a filter",
+    { id: "pc1-3", block: "A", group: "1 · Iterations and filter", no: "3", q: "3 iterations, with a filter",
       fields: [{ k: "suv", type: "num", label: "SUVmax with 5 mm" }, { k: "a", type: "text", label: "What the filter does" }] },
-    { id: "pc1-4", block: "C", group: "1 · Iterations and filter", no: "4", q: "The hospital said 12.49. Which is her real SUVmax?", fields: [{ k: "a", type: "text" }] },
-    { id: "pc1-5", block: "C", group: "1 · Iterations and filter", no: "5", q: "Bonus: follow-up in another hospital: what do you ask?", fields: [{ k: "a", type: "long" }] },
-    { id: "pc2-1", block: "C", group: "2 · Lesion size", no: "1", q: "Will all six spheres show the same maximum?",
+    { id: "pc1-4", block: "A", group: "1 · Iterations and filter", no: "4", q: "The hospital said 12.49. Which is her real SUVmax?", fields: [{ k: "a", type: "text" }] },
+    { id: "pc1-5", block: "A", group: "1 · Iterations and filter", no: "5", q: "Bonus: follow-up in another hospital: what do you ask?", fields: [{ k: "a", type: "long" }] },
+    { id: "pc2-1", block: "A", group: "2 · Lesion size", no: "1", q: "Will all six spheres show the same maximum?",
       fields: [{ k: "pred", type: "choice", options: ["All the same", "Small ones lower", "Small ones higher"], predict: true }] },
-    { id: "pc2-2", block: "C", group: "2 · Lesion size", no: "2", q: "Recovery at 3 iterations + 5 mm",
+    { id: "pc2-2", block: "A", group: "2 · Lesion size", no: "2", q: "Recovery at 3 iterations + 5 mm",
       fields: [{ k: "s10", type: "num", label: "10 mm", unit: "%" }, { k: "s37", type: "num", label: "37 mm", unit: "%" }] },
-    { id: "pc2-3", block: "C", group: "2 · Lesion size", no: "3", q: "From what size do spheres read about right?", fields: [{ k: "mm", type: "num", label: "Size", unit: "mm" }] },
-    { id: "pc2-4", block: "C", group: "2 · Lesion size", no: "4", q: "A reconstruction with all six inside the EARL range", fields: [{ k: "a", type: "text" }] },
-    { id: "pc2-5", block: "C", group: "2 · Lesion size", no: "5", q: "Bonus: a 1 cm node reads SUVmax 3. Its true SUV?", fields: [{ k: "suv", type: "num", label: "True SUV about" }] },
-    // ---- Block D
-    { id: "pd1-2", block: "D", group: "1 · Draw", no: "2", q: "Your outline",
+    { id: "pc2-3", block: "A", group: "2 · Lesion size", no: "3", q: "From what size do spheres read about right?", fields: [{ k: "mm", type: "num", label: "Size", unit: "mm" }] },
+    { id: "pc2-4", block: "A", group: "2 · Lesion size", no: "4", q: "A reconstruction with all six inside the EARL range", fields: [{ k: "a", type: "text" }] },
+    { id: "pc2-5", block: "A", group: "2 · Lesion size", no: "5", q: "Bonus: a 1 cm node reads SUVmax 3. Its true SUV?", fields: [{ k: "suv", type: "num", label: "True SUV about" }] },
+    // ---- Block B
+    { id: "pd1-2", block: "B", group: "1 · Draw", no: "2", q: "Your outline",
       fields: [{ k: "v", type: "num", label: "Volume", unit: "mL" }, { k: "win", type: "choice", label: "Window", options: ["0–5", "0–10", "0–20"] }] },
-    { id: "pd1-3", block: "D", group: "1 · Draw", no: "3", q: "Another window: would you draw it differently?", fields: [{ k: "a", type: "text" }] },
-    { id: "pd2-1", block: "D", group: "2 · Automatic methods", no: "1", q: "Biggest and smallest volume",
+    { id: "pd1-3", block: "B", group: "1 · Draw", no: "3", q: "Another window: would you draw it differently?", fields: [{ k: "a", type: "text" }] },
+    { id: "pd2-1", block: "B", group: "2 · Automatic methods", no: "1", q: "Biggest and smallest volume",
       fields: [{ k: "big", type: "choice", label: "Biggest", options: ["41 %", "50 %", "SUV 2.5", "Adaptive", "Gradient"], predict: true },
         { k: "small", type: "choice", label: "Smallest", options: ["41 %", "50 %", "SUV 2.5", "Adaptive", "Gradient"], predict: true }] },
-    { id: "pd2-2", block: "D", group: "2 · Automatic methods", no: "2", q: "Volumes",
+    { id: "pd2-2", block: "B", group: "2 · Automatic methods", no: "2", q: "Volumes",
       fields: [{ k: "t", type: "grid", rows: ["41 %", "50 %", "SUV 2.5", "Adaptive", "Gradient"], cols: ["mL"] }] },
-    { id: "pd2-3", block: "D", group: "2 · Automatic methods", no: "3", q: "Best overlap with the expert outline",
+    { id: "pd2-3", block: "B", group: "2 · Automatic methods", no: "3", q: "Best overlap with the expert outline",
       fields: [{ k: "best", type: "choice", label: "Method", options: ["41 %", "50 %", "SUV 2.5", "Adaptive", "Gradient"] },
         { k: "mine", type: "num", label: "Dice of your outline" }] },
-    { id: "pd2-4", block: "D", group: "2 · Automatic methods", no: "4", q: "SUV 2.5: what goes wrong? Liver or brain?", fields: [{ k: "a", type: "text" }] },
-    { id: "pd2-5", block: "D", group: "2 · Automatic methods", no: "5", q: "Bonus: one of these as the GTV? What instead?", fields: [{ k: "a", type: "long" }] },
-    { id: "pd3-1", block: "D", group: "3 · Another reconstruction", no: "1", q: "12 iterations, no filter: the 41 % outline gets ...",
+    { id: "pd2-4", block: "B", group: "2 · Automatic methods", no: "4", q: "SUV 2.5: what goes wrong? Liver or brain?", fields: [{ k: "a", type: "text" }] },
+    { id: "pd2-5", block: "B", group: "2 · Automatic methods", no: "5", q: "Bonus: one of these as the GTV? What instead?", fields: [{ k: "a", type: "long" }] },
+    { id: "pd3-1", block: "B", group: "3 · Another reconstruction", no: "1", q: "12 iterations, no filter: the 41 % outline gets ...",
       fields: [{ k: "pred", type: "choice", options: ["bigger", "the same", "smaller"], predict: true }] },
-    { id: "pd3-2", block: "D", group: "3 · Another reconstruction", no: "2", q: "SUVmax and volumes for three reconstructions",
+    { id: "pd3-2", block: "B", group: "3 · Another reconstruction", no: "2", q: "SUVmax and volumes for three reconstructions",
       fields: [{ k: "t", type: "grid", rows: ["1 it, 7 mm", "3 it, 5 mm", "12 it, none"], cols: ["SUVmax", "41 % mL", "SUV 2.5 mL"] }] },
-    { id: "pd3-3", block: "D", group: "3 · Another reconstruction", no: "3", q: "Why did the 41 % volume change?", fields: [{ k: "a", type: "text" }] },
-    { id: "pd3-4", block: "D", group: "3 · Another reconstruction", no: "4", q: "Bonus: one 41 % threshold on the phantom: which sizes are right?", fields: [{ k: "a", type: "text" }] },    // ---- Block B
-    { id: "pb1-1", block: "B", group: "1 · With and without AC", no: "1", q: "Without AC: where are the values too high, and where too low?",
+    { id: "pd3-3", block: "B", group: "3 · Another reconstruction", no: "3", q: "Why did the 41 % volume change?", fields: [{ k: "a", type: "text" }] },
+    { id: "pd3-4", block: "B", group: "3 · Another reconstruction", no: "4", q: "Bonus: one 41 % threshold on the phantom: which sizes are right?", fields: [{ k: "a", type: "text" }] },    // ---- Block C
+    { id: "pb1-1", block: "C", group: "1 · With and without AC", no: "1", q: "Without AC: where are the values too high, and where too low?",
       fields: [{ k: "pred", type: "text", label: "My prediction", predict: true }, { k: "seen", type: "text", label: "What I saw" }] },
-    { id: "pb1-2", block: "B", group: "1 · With and without AC", no: "2", q: "Without AC, the tumour stands out from the lung around it ...",
+    { id: "pb1-2", block: "C", group: "1 · With and without AC", no: "2", q: "Without AC, the tumour stands out from the lung around it ...",
       fields: [{ k: "look", type: "choice", options: ["more", "the same", "less"] }] },   // changed 2026-11-10: was tumour ÷ liver (keys ac, nac, more)
-    { id: "pb1-3", block: "B", group: "1 · With and without AC", no: "3", q: "Without AC: why too low in the centre, too high in the lungs and skin?", fields: [{ k: "a", type: "text" }] },
-    { id: "pb1-4", block: "B", group: "1 · With and without AC", no: "4", q: "Bonus: an SUV without AC?", fields: [{ k: "a", type: "text" }] },
-    { id: "pb2-1", block: "B", group: "2 · Breathing", no: "1", q: "CT with the diaphragm 2 cm higher: the tumour SUVmax ...",
+    { id: "pb1-3", block: "C", group: "1 · With and without AC", no: "3", q: "Without AC: why too low in the centre, too high in the lungs and skin?", fields: [{ k: "a", type: "text" }] },
+    { id: "pb1-4", block: "C", group: "1 · With and without AC", no: "4", q: "Bonus: an SUV without AC?", fields: [{ k: "a", type: "text" }] },
+    { id: "pb2-1", block: "C", group: "2 · Breathing", no: "1", q: "CT with the diaphragm 2 cm higher: the tumour SUVmax ...",
       fields: [{ k: "pred", type: "choice", label: "My prediction", options: ["goes up", "stays the same", "goes down"], predict: true },
         { k: "real", type: "num", label: "SUVmax you measured" }] },
-    { id: "pb2-2", block: "B", group: "2 · Breathing", no: "2", q: "Coronal, Change: where are the errors? And the biggest error in the tumour SUVmax",   // 2026-11-10: old pb2-2 + pb2-3 merged
+    { id: "pb2-2", block: "C", group: "2 · Breathing", no: "2", q: "Coronal, Change: where are the errors? And the biggest error in the tumour SUVmax",   // 2026-11-10: old pb2-2 + pb2-3 merged
       fields: [{ k: "a", type: "text", label: "Where, too high or too low" }, { k: "ct", type: "text", label: "Biggest error: which CT" }, { k: "pct", type: "num", label: "Change", unit: "%" }] },
-    { id: "pb2-4", block: "B", group: "2 · Breathing", no: "3", q: "In clinic, what tells you the CT and the PET do not match?", fields: [{ k: "a", type: "text" }] },
-    { id: "pb2-5", block: "B", group: "2 · Breathing", no: "4", q: "Bonus: how could the department make this error smaller?", fields: [{ k: "a", type: "long" }] },
-    // ---- Block A, step 1: the image
-    { id: "pa1-1", block: "A", group: "1 · The image", no: "1", q: "Where is the tumour?",
+    { id: "pb2-4", block: "C", group: "2 · Breathing", no: "3", q: "In clinic, what tells you the CT and the PET do not match?", fields: [{ k: "a", type: "text" }] },
+    { id: "pb2-5", block: "C", group: "2 · Breathing", no: "4", q: "Bonus: how could the department make this error smaller?", fields: [{ k: "a", type: "long" }] },
+    // ---- Block D, step 1: the image
+    { id: "pa1-1", block: "D", group: "1 · The image", no: "1", q: "Where is the tumour?",
       fields: [{ k: "a", type: "choice", options: ["Right upper lobe", "Right lower lobe", "Left upper lobe", "Left lower lobe"] }] },
-    { id: "pa1-2", block: "A", group: "1 · The image", no: "2", q: "Window SUV 0–5 instead of 0–20: the tumour looks ...",
+    { id: "pa1-2", block: "D", group: "1 · The image", no: "2", q: "Window SUV 0–5 instead of 0–20: the tumour looks ...",
       fields: [{ k: "pred", type: "choice", options: ["bigger", "the same", "smaller"], predict: true },
         { k: "why", type: "text", label: "What did you see?" }] },
-    { id: "pa1-3", block: "A", group: "1 · The image", no: "3", q: "The hottest voxel in the tumour",
+    { id: "pa1-3", block: "D", group: "1 · The image", no: "3", q: "The hottest voxel in the tumour",
       fields: [{ k: "suv", type: "num", label: "SUVmax" }, { k: "mean", type: "num", label: "SUVmean in your circle" }] },
-    { id: "pa1-4", block: "A", group: "1 · The image", no: "4", q: "What else lights up on the MIP? Is it cancer?", fields: [{ k: "a", type: "text" }] },
-    // ---- Block A, step 2: the header
-    { id: "pa2-2", block: "A", group: "2 · The DICOM header", no: "2", q: "Which time do you use for the decay correction?",
+    { id: "pa1-4", block: "D", group: "1 · The image", no: "4", q: "What else lights up on the MIP? Is it cancer?", fields: [{ k: "a", type: "text" }] },
+    // ---- Block D, step 2: the header
+    { id: "pa2-2", block: "D", group: "2 · The DICOM header", no: "2", q: "Which time do you use for the decay correction?",
       fields: [{ k: "pred", type: "choice", options: ["Series Time", "Acquisition Time"], predict: true }] },
-    { id: "pa2-3", block: "A", group: "2 · The DICOM header", no: "3", q: "SUVmax by hand",
+    { id: "pa2-3", block: "D", group: "2 · The DICOM header", no: "3", q: "SUVmax by hand",
       fields: [{ k: "up", type: "num", label: "Uptake time", unit: "min" }, { k: "frac", type: "num", label: "Fraction of the dose left" },
         { k: "dose", type: "num", label: "Dose at scan start", unit: "MBq" }, { k: "suv", type: "num", label: "SUVmax" }] },
-    { id: "pa2-4", block: "A", group: "2 · The DICOM header", no: "4", q: "Bonus: SUVmax per lean body mass (SUL)",
+    { id: "pa2-4", block: "D", group: "2 · The DICOM header", no: "4", q: "Bonus: SUVmax per lean body mass (SUL)",
       fields: [{ k: "lbm", type: "num", label: "Lean body mass", unit: "kg" }, { k: "sul", type: "num", label: "SULmax" }] },
-    // ---- Block A, step 3: what if
-    { id: "pa3-1", block: "A", group: "3 · What if", no: "1", q: "Weight typed in pounds (154 instead of 70 kg): SUVmax?",
+    // ---- Block D, step 3: what if
+    { id: "pa3-1", block: "D", group: "3 · What if", no: "1", q: "Weight typed in pounds (154 instead of 70 kg): SUVmax?",
       fields: [{ k: "pred", type: "num", label: "My prediction", predict: true }, { k: "real", type: "num", label: "What you found" }] },
-    { id: "pa3-2", block: "A", group: "3 · What if", no: "2", q: "Injection-room clock 30 min slow: SUVmax goes up or down, and by how much?",
+    { id: "pa3-2", block: "D", group: "3 · What if", no: "2", q: "Injection-room clock 30 min slow: SUVmax goes up or down, and by how much?",
       fields: [{ k: "pred", type: "num", label: "My prediction", unit: "% change", predict: true }, { k: "real", type: "num", label: "What you found", unit: "% change" }] },
-    { id: "pa3-3", block: "A", group: "3 · What if", no: "3", q: "10 % of the dose stayed in the syringe: which SUVmax is right?",
+    { id: "pa3-3", block: "D", group: "3 · What if", no: "3", q: "10 % of the dose stayed in the syringe: which SUVmax is right?",
       fields: [{ k: "pred", type: "choice", options: ["The one on the screen", "Higher", "Lower"], predict: true }, { k: "real", type: "num", label: "Corrected SUVmax" }] },
-    { id: "pa3-4", block: "A", group: "3 · What if", no: "4", q: "Scanned at 90 instead of 55 min: can the calculation correct for it?",
+    { id: "pa3-4", block: "D", group: "3 · What if", no: "4", q: "Scanned at 90 instead of 55 min: can the calculation correct for it?",
       fields: [{ k: "a", type: "choice", options: ["Yes", "No"] }, { k: "why", type: "text", label: "Why" }] },
-    { id: "pa3-5", block: "A", group: "3 · What if", no: "5", q: "A follow-up scan: what do you check in the DICOM header before you compare SUVs?",
+    { id: "pa3-5", block: "D", group: "3 · What if", no: "5", q: "A follow-up scan: what do you check in the DICOM header before you compare SUVs?",
       fields: [{ k: "a", type: "long" }] },
 
   ];
@@ -242,7 +257,7 @@
       const t = wrap.querySelector("textarea"); t.value = get(q.id, f.k) || "";
       t.addEventListener("input", () => set(q.id, f.k, t.value));
     } else if (f.type === "choice" || f.type === "multi") {
-      const multi = f.type === "multi", cur = get(q.id, f.k);
+      const multi = f.type === "multi", raw = get(q.id, f.k), cur = !multi && f.alias && f.alias[raw] || raw;   // alias: old option names
       const has = o => multi ? (cur || []).includes(o) : cur === o;
       wrap.innerHTML = `${lab}<span class="opts" role="${multi ? "group" : "radiogroup"}" aria-label="${aria}">` +
         f.options.map(o => `<label><input type="${multi ? "checkbox" : "radio"}" name="${id}" value="${esc(o)}"${has(o) ? " checked" : ""}>${esc(o)}</label>`).join("") + "</span>";
@@ -283,7 +298,7 @@
       const sync = () => {
         const locked = !!data.lock[q.id];
         fs.disabled = locked; lockBtn.hidden = locked; unlock.hidden = !locked;
-        note.textContent = locked ? "🔒 Locked. Now try it and see if you were right." : "";
+        note.textContent = locked ? "🔒 " + (q.then || "Locked. Now try it and see if you were right.") : "";   // q.then: what to do next
         if (restBox) restBox.hidden = !locked && rest.length > 0 && !filled(q, rest);
       };
       lockBtn.addEventListener("click", () => {
@@ -334,7 +349,7 @@
       if (!Object.values(v).some(Boolean)) return "";
       return f.rows.map((r, i) => `${r}: ` + f.cols.map((c, j) => `${c} ${v[i + "-" + j] || "–"}`).join(", ")).join("\n");
     }
-    const s = Array.isArray(v) ? v.join(", ") : String(v);
+    const s = Array.isArray(v) ? v.join(", ") : String(f.alias && f.alias[v] || v);
     return (f.label ? f.label + ": " : "") + s + (f.unit && f.type === "num" ? " " + f.unit : "");
   }
   function asText() {

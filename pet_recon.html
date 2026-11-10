@@ -9,7 +9,7 @@
 
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
-/* PET Block C. Same shell as Blocks A and B. The simulated scan of the Block A patient (tools/prep_pet.py), reconstructed
+/* PET Block A. Same shell as Blocks C and D. The simulated scan of the Block D patient (tools/prep_pet.py), reconstructed
    with 1-12 OSEM iterations; the post-filter is applied here. The NEMA IEC phantom through the same scanner. */
 :root {
   --bg: #ffffff; --surface: #f4f6f9; --line: #dde2ea; --ink: #1a1a1a; --muted: #5f6672; --guide: #9aa0a6;
@@ -115,7 +115,7 @@ td.bad { color: var(--red); font-weight: bold; }
 <div class="wrap">
   <header>
     <a class="back" href="pet.html">← All blocks</a>
-    <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · PET · Block C</div>
+    <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · PET · Block A</div>
     <h1>Reconstruction and lesion size</h1>
     <p class="lede">A woman of 58 with lung cancer, scanned with FDG PET/CT. The scanner does not take a picture: it counts photon pairs, and a computer turns the counts into an image.
       How it does that, and how big the tumour is, both change the SUV.</p>
@@ -178,7 +178,7 @@ td.bad { color: var(--red); font-weight: bold; }
       <div data-step="iter" class="panel">
         <div class="tasks"><h2>Tasks</h2><ol>
           <li class="intro" data-spot="scan-box"><label><b>The patient and the scan</b>
-            <ul><li>A simulated scan of a real patient: we put her real PET and CT through a model of the scanner. So we can reconstruct the same counts in many ways and compare. (Block A shows her real scan.)</li>
+            <ul><li>A simulated scan of a real patient: we put her real PET and CT through a model of the scanner. So we can reconstruct the same counts in many ways and compare. (Block D shows her real scan.)</li>
               <li>The images show <b>SUV</b> (standardised uptake value): the PET value divided by the injected dose per kg of body weight. SUV 1 = the dose spread evenly through the body; the liver is about 2.5, her tumour about 10.</li></ul></label></li>
           <li class="intro" data-spot="scan-box,view-ctrls,display-ctrls,readout"><label><b>The viewer</b>
             <ul><li><b>Slider</b> beside the image: moves through the slices. Up = towards the head (on the coronal view: up = towards the front).</li>
@@ -195,7 +195,7 @@ td.bad { color: var(--red); font-weight: bold; }
           <li><input type="checkbox" id="pc1-1"><label for="pc1-1">Predict first: with more iterations, what happens to the tumour SUVmax, the liver mean and the noise?</label></li>
           <li><input type="checkbox" id="pc1-2"><label for="pc1-2">Set the filter to <b>None</b>. Step through the iterations from 1 to 12. Write down the tumour SUVmax and the liver noise at 1, 3 and 12 iterations.</label></li>
           <li><input type="checkbox" id="pc1-3"><label for="pc1-3">Now 3 iterations, and try the filters. What happens to the SUVmax and to the noise? (The EANM guideline allows filters up to 7 mm.)</label></li>
-          <li><input type="checkbox" id="pc1-4"><label for="pc1-4">The hospital's own reconstruction of this scan (you will see it in Block A) gave SUVmax <b class="mono" id="real-suv"></b>. Which number is her real SUVmax?</label></li>
+          <li><input type="checkbox" id="pc1-4"><label for="pc1-4">The hospital's own reconstruction of this scan (you will see it in Block D) gave SUVmax <b class="mono" id="real-suv"></b>. Which number is her real SUVmax?</label></li>
           <li class="extra"><input type="checkbox" id="pc1-5"><label for="pc1-5">She has her follow-up scan in another hospital, with another scanner and reconstruction. What would you ask before you compare the two SUVmax values?</label></li>
         </ol></div>
         <div class="readout" id="metrics" aria-live="polite"></div>
@@ -253,9 +253,9 @@ td.bad { color: var(--red); font-weight: bold; }
 
 <script src="pet_recon.js?v=e88d998c"></script>
 <script src="pet_view.js?v=0bde9340"></script>
-<script src="stepper.js?v=b8ba56c1"></script>
+<script src="stepper.js?v=0b21f326"></script>
 <script>window.WORKSHEET = "pet";</script>
-<script src="answers.js?v=d221bdab"></script>
+<script src="answers.js?v=b05232ea"></script>
 <script>
 (() => {
   "use strict";
@@ -395,8 +395,8 @@ td.bad { color: var(--red); font-weight: bold; }
     steppers[step] = Stepper.setup(box, {
       key: "taskpos-petrecon-" + step, sticky: false, onShow: showFrom,
       prev: si > 0 ? () => { location.hash = STEPS[si - 1]; } : null,
-      next: si < STEPS.length - 1 ? () => { location.hash = STEPS[si + 1]; window.scrollTo({ top: 0 }); } : () => { location.href = "pet_contour.html"; },   // order C, D, break, B, A
-      nextLabel: si < STEPS.length - 1 ? `Next: ${NAMES[STEPS[si + 1]]} →` : "Done: on to Block D →",
+      next: si < STEPS.length - 1 ? () => { location.hash = STEPS[si + 1]; window.scrollTo({ top: 0 }); } : () => { location.href = "pet_contour.html"; },   // order A, B, break, C, D
+      nextLabel: si < STEPS.length - 1 ? `Next: ${NAMES[STEPS[si + 1]]} →` : "Done: on to Block B →",
     });
   });
   function show(step) {

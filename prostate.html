@@ -132,7 +132,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
 <div class="wrap">
   <header>
     <a class="back" href="mr.html">← All blocks</a>
-    <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · Block B (1 of 3: start here)</div>
+    <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · Block A (1 of 3: start here)</div>
     <h1>Prostate ADC Case</h1>
     <p class="lede">A man with a tumour in the peripheral zone of the prostate. He was scanned twice, 13 days apart, on the
       same 3 T scanner with the same protocol. A radiologist outlined the tumour on the ADC map of each scan.</p>
@@ -161,7 +161,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
       <li><input type="checkbox" id="b-1"><label for="b-1">Find the tumour on both scans: dark on the ADC map, bright on b 1400. Move through the slices and switch images. Then switch on <b>Outline</b> to check.</label></li>
       <li><input type="checkbox" id="b-2"><label for="b-2">With the <b>expert ROI drawn on ADC</b>, read the mean ADC on scan 1 and scan 2.</label></li>
       <li><input type="checkbox" id="b-3"><label for="b-3">Now change the ROI: <b>grown 2 mm</b>, <b>shrunk 2 mm</b>, and <b>expert, on T2w</b> (the same radiologist's outline, drawn on the T2w image). How much does the mean move within one scan? Which value moves least: the mean, the median or the 10th percentile?</label></li>
-      <li data-spot="reveal-sec"><input type="checkbox" id="b-4"><label for="b-4">Imagine scan 1 was taken before treatment and scan 2 two weeks into treatment. Has the tumour responded? Lock your prediction here, then give the same answer further down the page to see what happened.</label></li>
+      <li data-spot="reveal-sec"><input type="checkbox" id="b-4"><label for="b-4">Imagine scan 1 was taken before treatment and scan 2 two weeks into treatment. Has the tumour responded: <b>Response</b>, <b>No response</b>, or <b>Can't tell</b>? Lock your prediction here, then press the same answer further down the page to see what happened.</label></li>
       <li class="extra"><input type="checkbox" id="b-5"><label for="b-5">Does your conclusion depend on which ROI you used?</label></li>
     </ol>
   </div>
@@ -214,7 +214,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
   <section class="reveal" id="reveal-sec" aria-live="polite">
     <h2>Task 4: has the tumour responded?</h2>
     <div class="row" id="answers">
-      <button type="button" id="ans-yes">Yes, a response</button>
+      <button type="button" id="ans-yes">Response</button>
       <button type="button" id="ans-no">No response</button>
       <button type="button" id="ans-unsure">Can't tell</button>
     </div>
@@ -238,6 +238,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
           <li>The limit is not a count of patients. A repeated scan stays inside it <b>19 times out of 20</b>.</li>
           <li>So 1 in 20 lands outside by chance. Here 1 of 10 did: a tiny lesion, +44 %.</li>
           <li>Average change with no treatment: <b>16 %</b>. This man's <span id="me-change"></span> is ordinary.</li>
+          <li>So the honest answer to task 4 was <b>Can't tell</b>: a change inside the limit cannot be told apart from measurement variation.</li>
           <li id="roi-method-bullet"></li>
         </ul></div>
     </div>
@@ -253,7 +254,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
 </div>
 
 <script src="prostate_case.js?v=2364f2ec"></script>
-<script src="stepper.js?v=b8ba56c1"></script>
+<script src="stepper.js?v=0b21f326"></script>
 <script>
 (() => {
   "use strict";
@@ -483,11 +484,11 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
   Stepper.setup(document.querySelector(".tasks"), {
     key: "taskpos-prostate", sticky: true, prev: null,
     onShow: li => { if (li.querySelector("#b-1")) setShowRoi(false); else if (!st.showRoi) setShowRoi(true); },   // find the tumour yourself first
-    next: () => { location.href = "contour.html"; }, nextLabel: "Next block: C · Contouring on DWI →",
+    next: () => { location.href = "contour.html"; }, nextLabel: "Next block: B · Contouring on DWI →",
   });
 })();
 </script>
-<script src="answers.js?v=d221bdab"></script>
+<script src="answers.js?v=b05232ea"></script>
 
 <script src="review/review.js"></script>
 </body>

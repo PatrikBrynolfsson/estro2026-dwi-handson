@@ -159,7 +159,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
 <div class="wrap">
   <header>
     <a class="back" href="mr.html">← All blocks</a>
-    <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · Block A (3 of 3)</div>
+    <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · Block C (3 of 3)</div>
     <h1>ADC &amp; IVIM Sandbox</h1>
     <p class="lede">A real brain scan with 21 b-values. Choose which b-values go into the ADC and see what number you get.
       Work in pairs. Type your answers in the box under each task, and predict before you click.</p>
@@ -193,7 +193,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
         <li><input type="checkbox" id="t1-1"><label for="t1-1">Move the b-value slider from 0 to 1000. Which parts of the brain lose the most signal between b = 0 and b = 100?</label></li>
         <li><input type="checkbox" id="t1-2"><label for="t1-2">Pick <b>Brain tissue</b>. Read its ADC with b 0 &amp; 800, then with b 200 &amp; 800.</label></li>
         <li><input type="checkbox" id="t1-3"><label for="t1-3">Predict first: in which region is the difference between <b>ADC (b 0 &amp; 800)</b> and <b>ADC (b 200 &amp; 800)</b> biggest: brain tissue, CSF, or vessels + CSF in the Sylvian fissure? Then check: choose <b>0 &amp; 800</b> and the <b>Difference map</b>, and read the % under the ADC for each region.</label></li>
-        <li><input type="checkbox" id="t1-4"><label for="t1-4">A change in brain ADC counts as real only above <b>11 %</b> (QIBA, same scanner and protocol both times; prostate in Block B: 47 %). Scan 1 used <b>b 0 &amp; 800</b>, the follow-up <b>b 200 &amp; 800</b>, and the tissue did not change. What change in brain ADC would you measure? Compare it with the 11 % limit. And if both scans used b 0 &amp; 800?</label></li>
+        <li><input type="checkbox" id="t1-4"><label for="t1-4">A change in brain ADC counts as real only above <b>11 %</b> (QIBA, same scanner and protocol both times; prostate in Block A: 47 %). Scan 1 used <b>b 0 &amp; 800</b>, the follow-up <b>b 200 &amp; 800</b>, and the tissue did not change. What change in brain ADC would you measure (use your numbers from task 2)? How much of the 11 % limit does it use up? And what would the change be if both scans used b 0 &amp; 800?</label></li>
         <li class="extra"><input type="checkbox" id="t1-5"><label for="t1-5">CSF is almost pure water: its ADC is close to free water at body temperature (about 3.0 × 10⁻³ mm²/s). Choose <b>0 &amp; 800</b> and the <b>Difference map</b>: why do the vessels in the Sylvian fissure light up?</label></li>
       </ol>
     </div>
@@ -256,30 +256,35 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
     <div class="tasks" data-step="2">
       <h2>Tasks <span class="note">a simulated tumour: the brain scan has none</span></h2>
       <ol>
-        <li><input type="checkbox" id="t2-1"><label for="t2-1">Predict first: after treatment, does the ADC fall, stay the same or rise? Guess for b 0 &amp; 800 and for b 200 &amp; 800, then lock your guesses. No calculation needed.</label></li>
+        <li class="intro" data-spot="scenario2"><label><b>The scenario</b>
+          <ul><li>A simulated tumour with a rich blood supply (the brain scan has none)</li>
+            <li>Treatment shuts down part of the blood supply: the <b>blood (perfusion) fraction f</b> falls from <b>0.25 to 0.08</b></li>
+            <li>The cells are untouched: the <b>tissue diffusion D</b> stays at 1.0 × 10⁻³ mm²/s</li>
+            <li>So an ADC that measured only the cells would not change</li></ul></label></li>
+        <li class="intro" data-spot="plot2-box"><label><b>How to read the graph</b>
+          <ul><li>One curve = the tumour's signal as the b-value rises: <b>dashed grey = before</b>, <b>solid black = after</b> treatment</li>
+            <li>The coloured dots are the two images the ADC uses: <b style="color:var(--red)">red = b 0 &amp; 800</b>, <b style="color:var(--teal)">teal = b 200 &amp; 800</b> (switch with the buttons above the graph); open dot = before, filled dot = after</li>
+            <li>The ADC is how steeply the line between the two dots falls: steeper = higher ADC</li></ul></label></li>
+        <li><input type="checkbox" id="t2-1"><label for="t2-1">Predict first: after treatment (less blood, same cells), does the ADC fall, stay the same or rise? Guess for b 0 &amp; 800 and for b 200 &amp; 800, then lock your guesses. Tip: switch between the two b-value buttons and compare the open and filled dots. No calculation needed.</label></li>
         <li><input type="checkbox" id="t2-2"><label for="t2-2">Press <b>Show the answers</b>. Were your guesses right?</label></li>
-        <li><input type="checkbox" id="t2-3"><label for="t2-3">Is the change bigger than the 11 % QIBA limit for brain? Would you call it a response, or no response?</label></li>
+        <li><input type="checkbox" id="t2-3"><label for="t2-3">Many scanners make the ADC map from <b>b 0 &amp; 800</b>: here it falls <b>19 %</b>. A clinician applies the <b>11 %</b> QIBA limit for brain (a bigger change counts as real) and knows that a responding tumour usually shows a <b>rising</b> ADC. How would they read this scan?</label></li>
+        <li><input type="checkbox" id="t2-3b"><label for="t2-3b">Now look at <b>b 200 &amp; 800</b>, which leaves out the blood signal. What really changed in the tumour?</label></li>
         <li class="extra"><input type="checkbox" id="t2-4"><label for="t2-4">Look at the b 50 &amp; 800 row. Is a lowest b-value of 50 enough?</label></li>
       </ol>
     </div>
     <div class="bench plot-left">
-      <div class="figure">
+      <div class="figure" id="plot2-box">
         <div class="ctrl" style="flex-direction:row;align-items:center;flex-wrap:wrap;gap:10px">
-          <span class="ctrl-label">Show the curves for</span>
+          <span class="ctrl-label">ADC from b-values</span>
           <div class="chips" id="b2-chips"></div>
         </div>
         <svg class="plot" id="plot2" viewBox="0 0 640 390" role="img" aria-label="Signal before and after treatment"></svg>
-        <div class="legend">
-          <span><i class="swatch dash" style="border-color:var(--guide)"></i>before (f = 0.25)</span>
-          <span><i class="swatch" style="border-color:var(--ink)"></i>after (f = 0.08)</span>
-          <span id="lg2-adc"><i class="dot" style="background:var(--orange)"></i>ADC lines (after you reveal)</span>
-        </div>
         <svg class="plot" id="bars" viewBox="0 0 640 200" role="img" aria-label="Fall in ADC compared with QIBA true-change limits" hidden></svg>
         <div class="note">Simulated tumour (the brain scan has none): tissue diffusion D = 1.0 × 10⁻³ mm²/s,
           blood D* = 20 × 10⁻³ mm²/s, no noise.</div>
       </div>
       <div class="panel">
-        <div class="message">A tumour with a rich blood supply. Treatment shuts down part of it: <b>f falls from 0.25 to 0.08</b>.
+        <div class="message" id="scenario2">A tumour with a rich blood supply. Treatment shuts down part of it: <b>f falls from 0.25 to 0.08</b>.
           The cells are untouched, so the tissue diffusion <b>D stays at 1.0</b>.</div>
         <div class="table-box">
           <table>
@@ -305,8 +310,8 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
         <li><input type="checkbox" id="t3-1"><label for="t3-1">Predict first: the same IVIM model was fitted in every voxel. Which map will show clear anatomy, and which will look like noise?</label></li>
         <li><input type="checkbox" id="t3-2"><label for="t3-2">Switch between <b>D</b>, <b>f</b> and <b>D*</b>. Were you right?</label></li>
         <li class="extra"><input type="checkbox" id="t3-3"><label for="t3-3">Click the CSF behind the midbrain. What blood fraction f does the fit report? Does that make sense?</label></li>
-        <li class="extra"><input type="checkbox" id="t3-4"><label for="t3-4">Scroll down and scan the same voxel 10 times. Which of D, f and D* stays close to its true value?</label></li>
-        <li class="extra"><input type="checkbox" id="t3-5"><label for="t3-5">Set the noise to SNR 20 (one voxel) and scan 10 times again.</label></li>
+        <li class="extra"><input type="checkbox" id="t3-4"><label for="t3-4">Scroll down to “Try it”. Keep the noise at <b>SNR 50</b> (the default) and press <b>Scan 10 times</b>. Which of D, f and D* stay close to their true value (the black tick)?</label></li>
+        <li class="extra"><input type="checkbox" id="t3-5"><label for="t3-5">Now set the noise to <b>SNR 20</b> (about one voxel) and press <b>Scan 10 times</b> again. Which stay close now?</label></li>
       </ol>
     </div>
     <div class="bench">
@@ -376,7 +381,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
 </div>
 
 <script src="ivim_slice.js?v=19ff0d13"></script>
-<script src="stepper.js?v=b8ba56c1"></script>
+<script src="stepper.js?v=0b21f326"></script>
 <script>
 (() => {
   "use strict";
@@ -416,7 +421,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
       next: ti < TABS.length - 1 ? () => { location.hash = TABS[ti + 1]; window.scrollTo({ top: 0 }); } : () => { location.href = "answers.html"; },
       nextLabel: ti < TABS.length - 1 ? `Next: ${TAB_NAMES[TABS[ti + 1]]} →` : "Done: review my answers →",
       onShow: tab === "treatment" ? li => {
-        t2guess = !!li.querySelector("#t2-1");
+        t2guess = !!li.querySelector("#t2-1") || li.classList.contains("intro");   // no answers before the guess
         if (t2ready) { if (t2guess) st2.revealed = false; draw2(); }
       } : undefined,
     });
@@ -758,13 +763,24 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
     const ax = signalAxes($("plot2"), "clip2", 0.2, TICKS);
     curve(ax, b => S(b, F_BEFORE), "stroke:var(--guide);stroke-width:2;stroke-dasharray:7 5");
     curve(ax, b => S(b, F_AFTER), "stroke:var(--ink);stroke-width:2.5");
+    const col = blo === 0 ? "var(--red)" : "var(--teal)";   // palette: b 0 scheme red (includes blood), b >= 200 teal
     if (revealed) {
-      adcLine(ax, blo, S(blo, F_BEFORE), 800, S(800, F_BEFORE), "stroke:var(--orange);stroke-width:1.6;stroke-dasharray:4 4;opacity:.8");
-      adcLine(ax, blo, S(blo, F_AFTER), 800, S(800, F_AFTER), "stroke:var(--orange);stroke-width:2");
+      adcLine(ax, blo, S(blo, F_BEFORE), 800, S(800, F_BEFORE), `stroke:${col};stroke-width:1.6;stroke-dasharray:4 4;opacity:.8`);
+      adcLine(ax, blo, S(blo, F_AFTER), 800, S(800, F_AFTER), `stroke:${col};stroke-width:2`);
     }
-    for (const [f, fill] of [[F_BEFORE, "var(--bg)"], [F_AFTER, "var(--orange)"]])
-      for (const b of [blo, 800]) point(ax, b, S(b, f), `fill:${fill};stroke:var(--orange);stroke-width:2`, 5);
-    $("lg2-adc").hidden = !revealed;
+    for (const [f, fill] of [[F_BEFORE, "var(--bg)"], [F_AFTER, col]])
+      for (const b of [blo, 800]) point(ax, b, S(b, f), `fill:${fill};stroke:${col};stroke-width:2`, 5);
+    // legend inside the graph (top right, above the curves)
+    const lg = el("g", {}, ax.top), lx = 330, ly = 32, row = 19;
+    el("rect", { x: lx - 10, y: ly - 16, width: 294, height: row * 4 + 6, rx: 6 }, lg, "fill:var(--bg);stroke:var(--line);opacity:.94");
+    el("line", { x1: lx, x2: lx + 26, y1: ly - 4, y2: ly - 4 }, lg, "stroke:var(--guide);stroke-width:2;stroke-dasharray:7 5");
+    text(lg, lx + 34, ly, "before treatment (f = 0.25)", "fill:var(--ink)", "start");
+    el("line", { x1: lx, x2: lx + 26, y1: ly + row - 4, y2: ly + row - 4 }, lg, "stroke:var(--ink);stroke-width:2.5");
+    text(lg, lx + 34, ly + row, "after treatment (f = 0.08)", "fill:var(--ink)", "start");
+    el("circle", { cx: lx + 5, cy: ly + 2 * row - 4, r: 5 }, lg, `fill:var(--bg);stroke:${col};stroke-width:2`);
+    el("circle", { cx: lx + 20, cy: ly + 2 * row - 4, r: 5 }, lg, `fill:${col};stroke:${col};stroke-width:2`);
+    text(lg, lx + 34, ly + 2 * row, `b ${blo} & 800: open = before, filled = after`, `fill:${col};font-weight:bold`, "start");
+    text(lg, lx + 34, ly + 3 * row, revealed ? "line between the dots: steeper = higher ADC" : "the ADC lines appear with the answers", "", "start");
     $("t2").innerHTML = SCHEMES2.map(b => {
       const a0_ = adc(b, 800, F_BEFORE), a1_ = adc(b, 800, F_AFTER);
       const stretch = b === 50 ? ` <span class="note">(bonus question)</span>` : "";
@@ -775,10 +791,11 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
     $("msg2").hidden = !revealed; $("bars").hidden = !revealed;
     if (revealed) {
       const c0 = adc(0, 800, F_AFTER) / adc(0, 800, F_BEFORE) - 1, c200 = adc(200, 800, F_AFTER) / adc(200, 800, F_BEFORE) - 1;
-      $("msg2").innerHTML = `With b = 0 in the fit, the ADC falls <b>${pct(c0).replace("−", "")}</b>: more than the <b>11 %</b> QIBA
-        limit for brain, so it counts as a real change. A tumour that responds usually shows a <b>rising</b> ADC: dying cells
-        leave water freer to move. So this fall would be read as <b>no response</b>. Yet the cells never changed; only the
-        blood did. With b 200 &amp; 800 the ADC moves only ${pct(Math.abs(c200)).replace("+", "")}.`;
+      $("msg2").innerHTML = `<b>Task 3:</b> with b 0 &amp; 800 (the scanner's usual ADC map) the ADC falls <b>${pct(c0).replace("−", "")}</b>:
+        more than the <b>11 %</b> QIBA limit for brain, so a clinician would call it a <b>real change</b>. A responding tumour
+        usually shows a <b>rising</b> ADC (dying cells leave water freer to move), so this fall reads as <b>no response</b>.<br>
+        <b>Task 4:</b> that reading is wrong. The cells never changed; <b>only the blood did</b>. With b 200 &amp; 800, which leaves
+        out the blood signal, the ADC moves only ${pct(Math.abs(c200)).replace("+", "")}.`;
       drawBars();
     }
   }
@@ -913,7 +930,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
   scan(1);
 })();
 </script>
-<script src="answers.js?v=d221bdab"></script>
+<script src="answers.js?v=b05232ea"></script>
 
 <script src="review/review.js"></script>
 </body>

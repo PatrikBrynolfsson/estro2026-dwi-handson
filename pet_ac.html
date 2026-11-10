@@ -9,7 +9,7 @@
 
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
-/* PET Block B. Same shell as Block A. A simulated scan of the Block A patient (tools/prep_pet.py): one set of measured
+/* PET Block C. Same shell as Block D. A simulated scan of the Block D patient (tools/prep_pet.py): one set of measured
    data, reconstructed with her CT, without attenuation correction, and with a CT taken at another point of the breath. */
 :root {
   --bg: #ffffff; --surface: #f4f6f9; --line: #dde2ea; --ink: #1a1a1a; --muted: #5f6672; --guide: #9aa0a6;
@@ -109,9 +109,9 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
 <div class="wrap">
   <header>
     <a class="back" href="pet.html">← All blocks</a>
-    <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · PET · Block B</div>
+    <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · PET · Block C</div>
     <h1>Attenuation correction</h1>
-    <p class="lede">The same patient and the same simulated scan as Blocks C and D: her real PET and CT, put through a model of the scanner.
+    <p class="lede">The same patient and the same simulated scan as Blocks A and B: her real PET and CT, put through a model of the scanner.
       Because it is simulated, we can change one thing at a time and keep everything else, even the noise, exactly the same.</p>
   </header>
 
@@ -156,7 +156,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
       <div data-step="ac" class="panel">
         <div class="tasks"><h2>Tasks</h2><ol>
           <li class="intro" data-spot="scan-box,view-ctrls"><label><b>A simulated scan</b>
-            <ul><li>The simulated scan you know from Blocks C and D (3 iterations, 5 mm filter), now with the CT as well: photons absorbed on the way out, the scanner's blur, noise.</li>
+            <ul><li>The simulated scan you know from Blocks A and B (3 iterations, 5 mm filter), now with the CT as well: photons absorbed on the way out, the scanner's blur, noise.</li>
               <li>The slab runs from the upper abdomen (liver) to the middle of the chest. Slider up = towards the head. <b>Coronal</b>: click it to move the axial slice.</li></ul></label></li>
           <li class="intro" data-spot="cond-box"><label><b>Attenuation correction (AC)</b>
             <ul><li>Many photons never leave the body: they are absorbed or scattered on the way out.</li>
@@ -227,9 +227,9 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
 
 <script src="pet_ac.js?v=56d5335a"></script>
 <script src="pet_view.js?v=0bde9340"></script>
-<script src="stepper.js?v=b8ba56c1"></script>
+<script src="stepper.js?v=0b21f326"></script>
 <script>window.WORKSHEET = "pet";</script>
-<script src="answers.js?v=d221bdab"></script>
+<script src="answers.js?v=b05232ea"></script>
 <script>
 (() => {
   "use strict";
@@ -312,8 +312,8 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
     steppers[step] = Stepper.setup(box, {
       key: "taskpos-petac-" + step, sticky: false, onShow: showFrom,
       prev: si > 0 ? () => { location.hash = STEPS[si - 1]; } : null,
-      next: si < STEPS.length - 1 ? () => { location.hash = STEPS[si + 1]; window.scrollTo({ top: 0 }); } : () => { location.href = "pet_suv.html"; },   // order C, D, B, A
-      nextLabel: si < STEPS.length - 1 ? `Next: ${NAMES[STEPS[si + 1]]} →` : "Done: on to Block A →",
+      next: si < STEPS.length - 1 ? () => { location.hash = STEPS[si + 1]; window.scrollTo({ top: 0 }); } : () => { location.href = "pet_suv.html"; },   // order A, B, break, C, D
+      nextLabel: si < STEPS.length - 1 ? `Next: ${NAMES[STEPS[si + 1]]} →` : "Done: on to Block D →",
     });
   });
   function show(step) {

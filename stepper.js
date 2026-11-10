@@ -8,7 +8,10 @@
  *                outlines without scrolling.
  *                <li data-spot="..."> on a task scrolls to and outlines those elements, without dimming.
  *                <li class="extra"> is a bonus task.
- *     key        localStorage key for the position (per page and group).
+ *     key        sessionStorage key for the position (per page and step), so a reload (or the browser's Back button)
+ *                keeps the card, while a new visit starts at the beginning.
+ *     Landing (changed 2026-11-10): moving forward into a step (Next, a tab click, a link) opens its FIRST card; Previous
+ *     on the first card of a step opens the previous step on its LAST card; a reload keeps the card you were on.
  *     sticky     keep the card in view while scrolling (full-width cards above the work area).
  *     prev/next  called on Previous at the first item / Next at the last item (null = disabled / nothing).
  *     nextLabel  label of Next at the last item.
@@ -56,9 +59,15 @@
   const style = document.createElement("style"); style.textContent = css; document.head.appendChild(style);
   const dim = document.createElement("div"); dim.className = "stepper-dim"; dim.hidden = true; document.body.appendChild(dim);
   const store = {
-    get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } },
-    set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* storage blocked */ } },
+    get: k => { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
+    set: (k, v) => { try { sessionStorage.setItem(k, v); } catch (e) { /* storage blocked */ } },
   };
+  // Restore the stored card only on a reload or the browser's Back/Forward; any other arrival starts at card 1.
+  const navType = (() => { try { const e = performance.getEntriesByType("navigation")[0]; return e ? e.type : ""; } catch (e) { return ""; } })();
+  const restore = navType === "reload" || navType === "back_forward";
+  let active = null;          // the stepper whose step is on screen
+  let enterLast = 0;          // time Previous left a step from its first card: the step it opens lands on its last card
+  let booting = true;         // during page set-up, refresh() keeps the restored card
 
   // ?task=<id>: switch to the step (tab) that holds this task. The n-th .tasks box belongs to the n-th [data-tab] link.
   const wantId = new URLSearchParams(location.search).get("task");
@@ -108,9 +117,11 @@
       const d = document.createElement("button"); d.type = "button"; d.setAttribute("aria-label", "Item " + (i + 1));
       d.addEventListener("click", () => go(i)); dots.appendChild(d);
     });
-    let pos = Math.min(n - 1, Math.max(0, +(store.get(opt.key) || 0)));
+    let pos = restore ? Math.min(n - 1, Math.max(0, +(store.get(opt.key) || 0))) : 0;
+    const me = {};
     function go(i, quiet = false) {
       pos = i;
+      if (box.offsetParent !== null) active = me;
       items.forEach((li, j) => { li.hidden = j !== i; });
       [...dots.children].forEach((d, j) => { d.setAttribute("aria-current", String(j === i)); if (j <= i) d.classList.add("seen"); });
       const intro = items[i].classList.contains("intro");
@@ -124,7 +135,7 @@
       spotlight(box, els, { dimming: intro, scroll: !quiet });   // quiet (page load, tab switch): no scrolling, but still dim
       if (opt.onShow) opt.onShow(items[i]);
     }
-    prev.addEventListener("click", () => { if (pos > 0) go(pos - 1); else if (opt.prev) { clear(); opt.prev(); } });
+    prev.addEventListener("click", () => { if (pos > 0) go(pos - 1); else if (opt.prev) { clear(); enterLast = Date.now(); opt.prev(); } });
     next.addEventListener("click", () => { if (pos < n - 1) go(pos + 1); else if (opt.next) { clear(); opt.next(); } });
     const wantPos = wantEl ? items.findIndex(li => li.contains(wantEl)) : -1;
     if (wantPos >= 0) pos = wantPos;
@@ -134,7 +145,16 @@
       const ws = items[wantPos].querySelector(".ws") || items[wantPos];
       ws.classList.add("spot"); ws.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }, 400);
-    return { go: (i, quiet) => go(i, quiet), refresh: () => go(pos, true) };
+    // refresh(): the page shows this step (tab switch). Entering it from another step starts at the first card,
+    // or at the last card when Previous brought us here; re-showing the step already on screen keeps the card.
+    function refresh() {
+      if (booting || active === me) { go(pos, true); return; }
+      const back = Date.now() - enterLast < 2000;
+      enterLast = 0;
+      go(back ? n - 1 : 0, true);
+    }
+    if (booting) setTimeout(() => { booting = false; }, 0);
+    return Object.assign(me, { go: (i, quiet) => go(i, quiet), refresh });
   }
 
   window.Stepper = { setup, clear };
