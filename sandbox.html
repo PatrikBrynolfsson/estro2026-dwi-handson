@@ -159,7 +159,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
 <div class="wrap">
   <header>
     <a class="back" href="mr.html">← All blocks</a>
-    <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · Block A</div>
+    <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · Block A (3 of 3)</div>
     <h1>ADC &amp; IVIM Sandbox</h1>
     <p class="lede">A real brain scan with 21 b-values. Choose which b-values go into the ADC and see what number you get.
       Work in pairs. Type your answers in the box under each task, and predict before you click.</p>
@@ -192,9 +192,9 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
             <li>Dashed line: b 200 &amp; 800, for comparison</li></ul></label></li>
         <li><input type="checkbox" id="t1-1"><label for="t1-1">Move the b-value slider from 0 to 1000. Which parts of the brain lose the most signal between b = 0 and b = 100?</label></li>
         <li><input type="checkbox" id="t1-2"><label for="t1-2">Pick <b>Brain tissue</b>. Read its ADC with b 0 &amp; 800, then with b 200 &amp; 800.</label></li>
-        <li><input type="checkbox" id="t1-3"><label for="t1-3">Predict first: which region has the biggest difference between the two ADCs: brain tissue, CSF, or vessels + CSF in the Sylvian fissure? Then check.</label></li>
-        <li><input type="checkbox" id="t1-4"><label for="t1-4">A change in brain ADC counts as real only above <b>11 %</b> (QIBA), measured with the same scanner and protocol both times. Suppose the first scan's ADC included b = 0 and the follow-up's did not (another scanner or protocol). How much of the 11 % would that difference alone account for? And what if both scans used b = 0?</label></li>
-        <li class="extra"><input type="checkbox" id="t1-5"><label for="t1-5">CSF is almost pure water: its ADC is close to free water at body temperature (about 3.0 × 10⁻³ mm²/s). Choose <b>0 &amp; 800</b> and the <b>ADC change</b> image: why do the vessels in the Sylvian fissure light up?</label></li>
+        <li><input type="checkbox" id="t1-3"><label for="t1-3">Predict first: in which region is the difference between <b>ADC (b 0 &amp; 800)</b> and <b>ADC (b 200 &amp; 800)</b> biggest: brain tissue, CSF, or vessels + CSF in the Sylvian fissure? Then check: choose <b>0 &amp; 800</b> and the <b>Difference map</b>, and read the % under the ADC for each region.</label></li>
+        <li><input type="checkbox" id="t1-4"><label for="t1-4">A change in brain ADC counts as real only above <b>11 %</b> (QIBA, same scanner and protocol both times; prostate in Block B: 47 %). Scan 1 used <b>b 0 &amp; 800</b>, the follow-up <b>b 200 &amp; 800</b>, and the tissue did not change. What change in brain ADC would you measure? Compare it with the 11 % limit. And if both scans used b 0 &amp; 800?</label></li>
+        <li class="extra"><input type="checkbox" id="t1-5"><label for="t1-5">CSF is almost pure water: its ADC is close to free water at body temperature (about 3.0 × 10⁻³ mm²/s). Choose <b>0 &amp; 800</b> and the <b>Difference map</b>: why do the vessels in the Sylvian fissure light up?</label></li>
       </ol>
     </div>
     <div class="setting" id="scheme-box">
@@ -304,8 +304,8 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
       <ol>
         <li><input type="checkbox" id="t3-1"><label for="t3-1">Predict first: the same IVIM model was fitted in every voxel. Which map will show clear anatomy, and which will look like noise?</label></li>
         <li><input type="checkbox" id="t3-2"><label for="t3-2">Switch between <b>D</b>, <b>f</b> and <b>D*</b>. Were you right?</label></li>
-        <li><input type="checkbox" id="t3-3"><label for="t3-3">Click the CSF behind the midbrain. What blood fraction f does the fit report? Does that make sense?</label></li>
-        <li><input type="checkbox" id="t3-4"><label for="t3-4">Scroll down and scan the same voxel 10 times. Which of D, f and D* stays close to its true value?</label></li>
+        <li class="extra"><input type="checkbox" id="t3-3"><label for="t3-3">Click the CSF behind the midbrain. What blood fraction f does the fit report? Does that make sense?</label></li>
+        <li class="extra"><input type="checkbox" id="t3-4"><label for="t3-4">Scroll down and scan the same voxel 10 times. Which of D, f and D* stays close to its true value?</label></li>
         <li class="extra"><input type="checkbox" id="t3-5"><label for="t3-5">Set the noise to SNR 20 (one voxel) and scan 10 times again.</label></li>
       </ol>
     </div>
@@ -413,8 +413,8 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
     steppers[tab] = Stepper.setup(box, {
       key: "taskpos2-" + tab, sticky: true,
       prev: ti > 0 ? () => { location.hash = TABS[ti - 1]; } : null,
-      next: ti < TABS.length - 1 ? () => { location.hash = TABS[ti + 1]; window.scrollTo({ top: 0 }); } : () => { location.href = "mr.html"; },
-      nextLabel: ti < TABS.length - 1 ? `Next: ${TAB_NAMES[TABS[ti + 1]]} →` : "Done: back to all blocks",
+      next: ti < TABS.length - 1 ? () => { location.hash = TABS[ti + 1]; window.scrollTo({ top: 0 }); } : () => { location.href = "answers.html"; },
+      nextLabel: ti < TABS.length - 1 ? `Next: ${TAB_NAMES[TABS[ti + 1]]} →` : "Done: review my answers →",
       onShow: tab === "treatment" ? li => {
         t2guess = !!li.querySelector("#t2-1");
         if (t2ready) { if (t2guess) st2.revealed = false; draw2(); }
@@ -723,7 +723,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
     });
     chips("view-chips", [
       { key: "b", label: "DWI at one b-value" }, { key: "adc", label: "ADC map" },
-      { key: "diff", label: "ADC change vs b 200 & 800" }], "b",
+      { key: "diff", label: "Difference map (vs b 200 & 800)" }], "b",
       it => { st1.view = it.key; drawView1(); });
     const regions = ["Brain tissue", "CSF (cistern)", "Vessels + CSF (Sylvian fissure)", "Your click"];
     chips("roi-chips", regions.map(r => ({ key: r, html: `<span class="roi-dot" style="background:${ROI_COLORS[r]}"></span>${label(r)}` })),
@@ -774,10 +774,11 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
     $("reveal").hidden = revealed || t2guess; $("hide").hidden = !revealed; $("reveal-hint").hidden = !t2guess;
     $("msg2").hidden = !revealed; $("bars").hidden = !revealed;
     if (revealed) {
-      const c0 = adc(0, 800, F_AFTER) / adc(0, 800, F_BEFORE) - 1;
-      $("msg2").innerHTML = `With b = 0 in the fit, ADC falls <b>${pct(c0).replace("−", "")}</b>. In the brain, QIBA calls a change
-        above <b>11 %</b> real: this fall would be read as a real change, and a falling ADC reads as <b>no response</b>.
-        Yet the cells never changed. Only the blood did. With b = 200 the ADC hardly moves.`;
+      const c0 = adc(0, 800, F_AFTER) / adc(0, 800, F_BEFORE) - 1, c200 = adc(200, 800, F_AFTER) / adc(200, 800, F_BEFORE) - 1;
+      $("msg2").innerHTML = `With b = 0 in the fit, the ADC falls <b>${pct(c0).replace("−", "")}</b>: more than the <b>11 %</b> QIBA
+        limit for brain, so it counts as a real change. A tumour that responds usually shows a <b>rising</b> ADC: dying cells
+        leave water freer to move. So this fall would be read as <b>no response</b>. Yet the cells never changed; only the
+        blood did. With b 200 &amp; 800 the ADC moves only ${pct(Math.abs(c200)).replace("+", "")}.`;
       drawBars();
     }
   }
@@ -912,7 +913,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
   scan(1);
 })();
 </script>
-<script src="answers.js?v=90e1b5cd"></script>
+<script src="answers.js?v=d221bdab"></script>
 
 <script src="review/review.js"></script>
 </body>

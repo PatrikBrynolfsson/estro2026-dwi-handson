@@ -64,7 +64,7 @@ nav a:hover { color: var(--ink); }
 .viewer.light .side { color: #5f6672; }
 .viewer .side-r { left: 8px; } .viewer .side-l { right: 8px; }
 .vslider { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
-.vslider input { writing-mode: vertical-lr; direction: rtl; flex: 1; min-height: 120px; width: 26px; margin: 0; accent-color: var(--teal); }
+.vslider input { writing-mode: vertical-lr; direction: ltr; /* slice 0 (head; front on the coronal) at the top: up = towards the head */ flex: 1; min-height: 120px; width: 26px; margin: 0; accent-color: var(--teal); }
 .vslider .mono { font-size: 13px; color: var(--ink); white-space: nowrap; }
 .cbar { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
 .cbar .bar { position: relative; flex: 1; min-height: 120px; display: flex; gap: 4px; }
@@ -111,7 +111,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
     <a class="back" href="pet.html">← All blocks</a>
     <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · PET · Block B</div>
     <h1>Attenuation correction</h1>
-    <p class="lede">The same patient as Block A, now as a simulated scan: her real PET and CT, put through a model of the scanner.
+    <p class="lede">The same patient and the same simulated scan as Blocks C and D: her real PET and CT, put through a model of the scanner.
       Because it is simulated, we can change one thing at a time and keep everything else, even the noise, exactly the same.</p>
   </header>
 
@@ -156,16 +156,16 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
       <div data-step="ac" class="panel">
         <div class="tasks"><h2>Tasks</h2><ol>
           <li class="intro" data-spot="scan-box,view-ctrls"><label><b>A simulated scan</b>
-            <ul><li>We took her real PET as the true activity and her CT as her body, and simulated the scan: photons absorbed on the way out, the scanner's blur, noise.</li>
-              <li>Then we reconstructed it like a standard clinical scan (4 mm pixels), so the numbers differ a little from Block A.</li>
-              <li>The slab runs from the upper abdomen (liver) to the middle of the chest. <b>Coronal</b>: click it to move the axial slice.</li></ul></label></li>
+            <ul><li>The simulated scan you know from Blocks C and D (3 iterations, 5 mm filter), now with the CT as well: photons absorbed on the way out, the scanner's blur, noise.</li>
+              <li>The slab runs from the upper abdomen (liver) to the middle of the chest. Slider up = towards the head. <b>Coronal</b>: click it to move the axial slice.</li></ul></label></li>
           <li class="intro" data-spot="cond-box"><label><b>Attenuation correction (AC)</b>
             <ul><li>Many photons never leave the body: they are absorbed or scattered on the way out.</li>
               <li>The scanner corrects for that with the CT.</li>
               <li>Here you can switch the correction off. Same data, same noise.</li></ul></label></li>
-          <li><input type="checkbox" id="pb1-1"><label for="pb1-1">Predict first: without attenuation correction, which parts of the body will look too bright, and which too dark? Then press <b>Without AC</b> and look at the axial and coronal views.</label></li>
-          <li><input type="checkbox" id="pb1-2"><label for="pb1-2">Drag a circle over the tumour, then over the liver (lower slices), with and without AC. Work out tumour ÷ liver both ways. Which makes the tumour stand out more?</label></li>
-          <li><input type="checkbox" id="pb1-3"><label for="pb1-3">Why is the centre of the body dark without AC? Why are the lungs and the skin bright?</label></li>
+          <li><input type="checkbox" id="pb1-1"><label for="pb1-1">Set <b>Colours</b> to <b>Colour</b> first: then bright = high values, dark = low (in inverted grey it is the other way round).
+            Predict: without attenuation correction, which parts of the body will show values that are too high, and which too low? Then press <b>Without AC</b> and look at the axial and coronal views.</label></li>
+          <li><input type="checkbox" id="pb1-2"><label for="pb1-2">Go to the slice where the tumour is brightest and switch between <b>With AC</b> and <b>Without AC</b>. Does the tumour stand out from the lung around it more, the same or less without AC? (If you like, drag a circle over it.)</label></li>
+          <li><input type="checkbox" id="pb1-3"><label for="pb1-3">Without AC, why are the values in the centre of the body too low, and in the lungs and the skin too high?</label></li>
           <li class="extra"><input type="checkbox" id="pb1-4"><label for="pb1-4">Without AC the values have no unit. Could you still report an SUV?</label></li>
         </ol></div>
         <div class="message" data-show-from="pb1-3"><b>Both photons have to get out.</b>
@@ -174,6 +174,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
             <li>Together they always cross the whole body along their line, wherever on the line they started. So what counts is the length of the line through the body.</li>
             <li>Lines through the middle of the body cross the most tissue: through 30 cm of soft tissue, only about 1 pair in 18 gets out. Lines that graze the skin, or run through air-filled lung, lose little.</li>
             <li>The scanner turns the CT (HU) into how strongly each voxel absorbs 511 keV photons, and multiplies each line back up.</li>
+            <li>So without AC the lung around the tumour reads too high, and the tumour stands out less from it: tumour ÷ lung around it is about 13 with AC, about 8 without.</li>
           </ul></div>
         <div class="message big"><b>Without AC there is no SUV.</b> With AC, the CT is part of every PET value.</div>
       </div>
@@ -183,21 +184,22 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
           <li class="intro" data-spot="cond-box"><label><b>The CT is a snapshot</b>
             <ul><li>The CT takes a few seconds; the PET takes minutes per bed position while she breathes freely. The PET shows her average position.</li>
               <li>If the CT catches the diaphragm higher or lower than that average, the wrong tissue is used to correct some lines.</li>
+              <li>The tumour sits in the lung and moves with it. So a CT from another point of the breath can put air-filled lung where the PET saw the tumour, even far from the diaphragm.</li>
               <li>Here you choose where the diaphragm was in the CT. We moved her CT the most at the diaphragm, and less towards the top of the lungs.</li></ul></label></li>
           <li class="intro" data-spot="img-chips,cbar-box"><label><b>Change</b>
             <ul><li><b>Change</b> shows the difference from the matched CT, in %: red = too high, blue = too low.</li>
               <li>The PET data are the same in every case. Only the CT used for AC changes.</li></ul></label></li>
           <li><input type="checkbox" id="pb2-1"><label for="pb2-1">Predict first: the CT was taken after she breathed out, with the diaphragm 2 cm higher. Will the tumour's SUVmax go up, go down or stay the same? Then press <b>2 cm higher</b> and drag a circle over the tumour.</label></li>
-          <li><input type="checkbox" id="pb2-2"><label for="pb2-2">Switch to <b>Coronal</b> and <b>Change</b>. Where are the errors, and do they make the PET too high or too low?</label></li>
-          <li><input type="checkbox" id="pb2-3"><label for="pb2-3">Try every CT. Which gives the biggest error in the tumour's SUVmax, and how big?</label></li>
+          <li><input type="checkbox" id="pb2-2"><label for="pb2-2">Switch to <b>Coronal</b> and <b>Change</b>, and press each CT in turn. Where are the errors, and do they make the PET too high or too low?
+            Then read the table below: which CT gives the biggest error in the tumour's SUVmax, and how big?</label></li>
           <li><input type="checkbox" id="pb2-4"><label for="pb2-4">Choose <b>PET on CT</b> with the 2 cm higher CT, at the tumour. In clinic, what would tell you that the CT and the PET do not match?</label></li>
           <li class="extra"><input type="checkbox" id="pb2-5"><label for="pb2-5">What could the department do to make this error smaller?</label></li>
         </ol></div>
-        <div class="table-box" data-show-from="pb2-3"><table>
+        <div class="table-box" data-show-from="pb2-2"><table>
           <thead><tr><th>CT used for AC</th><th class="num">Tumour SUVmax</th><th class="num">Change</th></tr></thead>
           <tbody id="shift-table"></tbody></table>
           <div class="note">SUVmax inside the expert lesion outline (one voxel wider), this reconstruction.</div></div>
-        <div class="message" data-show-from="pb2-3"><b>Why the tumour changes.</b>
+        <div class="message" data-show-from="pb2-2"><b>Why the tumour changes.</b>
           <ul>
             <li>Every line through the tumour crosses the tumour itself: about 3 cm of soft tissue. When the moved CT puts air-filled lung there instead, those lines are corrected too little, and the tumour reads low.</li>
             <li>At the liver dome the CT shows liver where the PET saw lung (or the reverse): a curved band that is too hot or too cold. Osman et al. saw such curved cold bands at the diaphragm in 84 % of PET/CT scans, mostly mild.</li>
@@ -227,7 +229,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
 <script src="pet_view.js?v=0bde9340"></script>
 <script src="stepper.js?v=b8ba56c1"></script>
 <script>window.WORKSHEET = "pet";</script>
-<script src="answers.js?v=90e1b5cd"></script>
+<script src="answers.js?v=d221bdab"></script>
 <script>
 (() => {
   "use strict";
@@ -310,8 +312,8 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
     steppers[step] = Stepper.setup(box, {
       key: "taskpos-petac-" + step, sticky: false, onShow: showFrom,
       prev: si > 0 ? () => { location.hash = STEPS[si - 1]; } : null,
-      next: si < STEPS.length - 1 ? () => { location.hash = STEPS[si + 1]; window.scrollTo({ top: 0 }); } : () => { location.href = "pet.html"; },
-      nextLabel: si < STEPS.length - 1 ? `Next: ${NAMES[STEPS[si + 1]]} →` : "Done: back to all blocks",
+      next: si < STEPS.length - 1 ? () => { location.hash = STEPS[si + 1]; window.scrollTo({ top: 0 }); } : () => { location.href = "pet_suv.html"; },   // order C, D, B, A
+      nextLabel: si < STEPS.length - 1 ? `Next: ${NAMES[STEPS[si + 1]]} →` : "Done: on to Block A →",
     });
   });
   function show(step) {

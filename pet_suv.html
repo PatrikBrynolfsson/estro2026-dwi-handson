@@ -66,7 +66,7 @@ nav a:hover { color: var(--ink); }
 .viewer.light .side { color: #5f6672; }
 .viewer .side-r { left: 8px; } .viewer .side-l { right: 8px; }
 .vslider { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
-.vslider input { writing-mode: vertical-lr; direction: rtl; flex: 1; min-height: 120px; width: 26px; margin: 0; accent-color: var(--teal); }
+.vslider input { writing-mode: vertical-lr; direction: ltr; /* slice 0 (head; front on the coronal) at the top: up = towards the head */ flex: 1; min-height: 120px; width: 26px; margin: 0; accent-color: var(--teal); }
 .vslider .mono { font-size: 13px; color: var(--ink); white-space: nowrap; }
 .cbar { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
 .cbar .bar { position: relative; flex: 1; min-height: 120px; display: flex; gap: 4px; }
@@ -111,8 +111,22 @@ td .mean { color: var(--muted); font-family: var(--font); font-size: 13px; displ
 .message { background: var(--surface); border-radius: 10px; padding: 12px 14px; font-size: 14.5px; }
 .message ul { margin: 6px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 3px; }
 .message.big { border-left: 4px solid var(--teal); font-size: 16px; }
+.formula.wrap { white-space: normal; font-size: 14px; margin: 4px 0; }
 .formula { font-family: var(--mono); font-size: 15px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin: 6px 0; overflow-x: auto; white-space: nowrap; }
 .note { font-size: 12.5px; color: var(--muted); }
+.timeline { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; display: flex; flex-direction: column; gap: 4px; }
+.timeline svg { width: 100%; height: auto; display: block; font-family: var(--font); }
+.timeline .ax { stroke: var(--ink); stroke-width: 2; fill: none; }
+.timeline .tk { stroke: var(--ink); stroke-width: 2; }
+.timeline text { fill: var(--ink); font-size: 17px; }
+.timeline text.t { font-family: var(--mono); font-size: 14.5px; }
+.timeline text.m { fill: var(--muted); font-size: 15px; }
+.timeline .up { stroke: var(--teal); stroke-width: 2.5; fill: none; }
+.timeline text.up-l { fill: var(--teal); font-weight: bold; }
+.timeline .dc { stroke: var(--orange); stroke-width: 2.5; fill: none; }
+.timeline text.dc-l { fill: var(--orange); font-weight: bold; }
+.timeline .q { stroke: var(--guide); stroke-width: 2; stroke-dasharray: 5 4; fill: none; }
+.timeline ul { margin: 0; padding-left: 18px; font-size: 13.5px; display: flex; flex-direction: column; gap: 2px; }
 .check { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
 .check .ok { color: var(--green); font-weight: bold; }
 .check .bad { color: var(--red); font-weight: bold; }
@@ -133,7 +147,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
     <a class="back" href="pet.html">← All blocks</a>
     <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · PET · Block A</div>
     <h1>SUV from the DICOM header</h1>
-    <p class="lede">A woman of 58 with lung cancer, scanned with FDG PET/CT. These are her real images and her real DICOM header.
+    <p class="lede">The woman of 58 with lung cancer from the other blocks. Here are her real images and her real DICOM header, not a simulation.
       The viewer shows SUV, but the scanner never stored an SUV: it is calculated from five numbers in the DICOM header.
       Where do they come from, and what if one is wrong?</p>
   </header>
@@ -178,7 +192,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
       <!-- step 1 -->
       <div data-step="image" class="panel">
         <div class="tasks"><h2>Tasks</h2><ol>
-          <li class="intro" data-spot="scan-box,view-ctrls"><label><b>The images</b>
+          <li class="intro" data-spot="scan-box,view-ctrls"><label><b>The images</b> <span class="note">(the same viewer as before, with two more views)</span>
             <ul><li><b>MIP</b>: the whole body at once, the brightest point along each line of sight. <b>Coronal</b>: one slice from the front. <b>Axial</b>: the chest, slice by slice.</li>
               <li><b>Slider</b>: on the axial, head at the top; on the coronal, front at the top. On the MIP or coronal view, click a spot to jump the axial slice there.</li>
               <li><b>PET on CT</b> lays the PET over the CT.</li></ul></label></li>
@@ -197,16 +211,21 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
       <div data-step="header" class="panel" hidden>
         <div class="tasks"><h2>Tasks</h2><ol>
           <li><input type="checkbox" id="pa2-1"><label for="pa2-1">The scanner stores <b>activity concentration</b>: becquerels per millilitre (Units = BQML). SUV divides it by the activity per gram of body:
-            <div class="formula">SUV = C [Bq/mL] ÷ ( dose at scan start [Bq] ÷ weight [g] )</div>
-            Find in the DICOM header (below) the values you need: weight, dose, injection time, scan time and half-life.</label></li>
+            <div class="formula wrap">SUV = C [Bq/mL] ÷ ( dose at scan start [Bq] ÷ weight [g] )</div>
+            1 mL of tissue weighs about 1 g, so the units cancel: SUV has no unit. SUV 1 = the dose spread evenly through the body.
+            Find in the DICOM header (below) the values you need: weight, dose, injection time, scan time and half-life. The time line shows when each time was taken.</label></li>
           <li><input type="checkbox" id="pa2-2"><label for="pa2-2">The dose was measured at injection; by the scan it has decayed. Predict first: the DICOM header has two scan times. Which one do you use?</label></li>
           <li><input type="checkbox" id="pa2-3"><label for="pa2-3">Calculate the SUV of the hottest voxel (<b class="mono" id="hot-bq"></b> Bq/mL), step by step:
-            <div class="formula">fraction left = 2^( − uptake time ÷ half-life )</div>
-            Then press <b>Check my numbers</b>.</label></li>
+            <div class="formula wrap">1 · fraction left = 2^(− uptake time ÷ half-life), both in minutes</div>
+            <div class="formula wrap">2 · dose at scan start [MBq] = 323 MBq × fraction left</div>
+            <div class="formula wrap">3 · SUV = 40713 Bq/mL ÷ (dose at scan start [Bq] ÷ weight [g])</div>
+            In Bq and grams: 1 MBq = 1000000 Bq, 1 kg = 1000 g. Then press <b>Check my numbers</b>.</label></li>
           <li class="extra"><input type="checkbox" id="pa2-4"><label for="pa2-4">SUV per lean body mass (SUL), as in PERCIST. Lean body mass for a woman (Janmahasatian):
             <div class="formula">LBM = 9270 × W ÷ (8780 + 244 × BMI)</div>
             with W in kg and BMI = W ÷ height². Then SULmax = SUVmax × LBM ÷ W.</label></li>
         </ol></div>
+        <div class="timeline" id="tl-q" data-hide-from="pa2-3"></div>
+        <div class="timeline" id="tl-full" data-show-from="pa2-3"></div>
         <div class="message" data-show-from="pa2-3"><b>Series Time, not Acquisition Time.</b>
           <ul>
             <li>The bed moved continuously: each slice has its own Acquisition Time. This slice was measured at <span class="mono" id="acq-t"></span>, <span id="acq-min"></span> min after the series started.</li>
@@ -268,7 +287,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
 <script src="pet_view.js?v=0bde9340"></script>
 <script src="stepper.js?v=b8ba56c1"></script>
 <script>window.WORKSHEET = "pet";</script>
-<script src="answers.js?v=90e1b5cd"></script>
+<script src="answers.js?v=d221bdab"></script>
 <script>
 (() => {
   "use strict";
@@ -287,7 +306,8 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
   const fNow = () => (st.step === "whatif" ? factor(vals) : F_TRUE);
   const num = s => parseFloat(String(s).replace(",", ".").replace(/\s/g, ""));
   const fmt = (x, d = 2) => isFinite(x) ? x.toFixed(d) : "–";
-  const grp = x => Math.round(x).toLocaleString("en-GB").replace(/,/g, " ");
+  // whole numbers with NO thousands separator: "40 713" was read as two numbers, and "40,713" / "40.713" are ambiguous
+  const grp = x => String(Math.round(x));
 
   // ---------- images ----------
   const decode = uri => new Promise((ok, fail) => {
@@ -480,7 +500,36 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
   cv.addEventListener("pointercancel", () => { st.drag = null; });
 
   // ---------- step 2: header table, checks ----------
-  $("hot-bq").textContent = grp(D.hot.bqml);
+  $("hot-bq").textContent = grp(D.hot.bqml);   // 40713: also written out in the step-by-step formulas of task 2.3
+
+  // the time line: injection -> series start -> this slice. Question version (tasks 1-2), then with the times marked (task 3 on)
+  function timeline(full) {
+    const t0 = hms(D.inj_time), ts = hms(D.series_time), ta = hms(D.slice_acq_time);
+    const X0 = 20, X1 = 470, xs = s => X0 + (s - t0) / (ta - t0 + 240) * (X1 - X0);
+    const xi = xs(t0), xS = xs(ts), xA = xs(ta), y = 104;
+    const upMin = ((ts - t0) / 60).toFixed(1), dMin = ((ta - ts) / 60).toFixed(1);
+    let s = `<svg viewBox="0 0 520 160" role="img" aria-label="Time line: injection ${D.inj_time}, series start ${D.series_time}, this slice ${D.slice_acq_time}">`;
+    s += `<path class="ax" d="M${X0 - 8} ${y} H${X1 + 34}"/><path class="ax" d="M${X1 + 26} ${y - 6} L${X1 + 36} ${y} L${X1 + 26} ${y + 6}"/>`;
+    for (const x of [xi, xS, xA]) s += `<line class="tk" x1="${x}" x2="${x}" y1="${y - 8}" y2="${y + 8}"/>`;
+    // labels: injection and series start above the line, this slice below; the tag name in grey under each
+    s += `<text x="${xi}" y="22" font-weight="bold">Injection · ${D.inj_time}</text><text class="m" x="${xi}" y="42">Radiopharmaceutical Start Time</text>`;
+    s += `<text class="m" x="${xi}" y="${y + 26}">dose measured: 323 MBq</text>`;
+    s += `<text x="${xS}" y="22" text-anchor="middle" font-weight="bold">Scan starts · ${D.series_time}</text><text class="m" x="${xS}" y="42" text-anchor="middle">Series Time</text>`;
+    s += `<text x="${xA}" y="${y + 26}" text-anchor="end" font-weight="bold">This slice · ${D.slice_acq_time}</text><text class="m" x="${xA}" y="${y + 46}" text-anchor="end">Acquisition Time</text>`;
+    if (full) {
+      s += `<path class="up" d="M${xi + 2} ${y - 22} v8 H${xS - 2} v-8"/><text class="up-l" x="${(xi + xS) / 2}" y="${y - 30}" text-anchor="middle">uptake time = decay time: ${upMin} min</text>`;
+      s += `<path class="dc" d="M${xS + 2} ${y - 14} v-6 H${xA - 2} v6"/><text class="dc-l" x="${(xS + xA) / 2}" y="${y - 26}" text-anchor="middle">${dMin} min</text>`;
+    } else {
+      s += `<path class="q" d="M${xi + 2} ${y - 22} v8 H${xA - 2}"/><text class="m" x="${(xi + xS) / 2}" y="${y - 30}" text-anchor="middle">uptake time: up to which scan time? (task 2)</text>`;
+    }
+    s += `</svg>`;
+    if (full) s += `<ul>
+      <li><b style="color:var(--teal)">Uptake time</b> (biology): how long the FDG had to collect in the tissue, from injection to the start of the scan.</li>
+      <li><b style="color:var(--teal)">Decay time</b> (physics): how long the dose decayed, from injection to the time the image is decay-corrected to. Here both are ${upMin} min, because Decay Correction = START.</li>
+      <li><b style="color:var(--orange)">${dMin} min</b>: this slice was measured later, but the scanner has already corrected it back to the scan start (Decay Factor ${D.decay_factor}). Do not count these minutes again.</li></ul>`;
+    return s;
+  }
+  $("tl-q").innerHTML = timeline(false); $("tl-full").innerHTML = timeline(true);
   $("header-table").innerHTML = D.header.map(h => {
     let mean = h.unit;
     if (h.unit === "Bq") mean = `= ${grp(+h.value / 1e6)} MBq`;
@@ -506,7 +555,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
       ["up", "Uptake time", 0.01, "From the Radiopharmaceutical Start Time to the Series Time."],
       ["frac", "Fraction left", 0.01, "2^(− uptake ÷ half-life), both in the same unit: the half-life is 6586.2 s = 109.8 min."],
       ["dose", "Dose at scan start", 0.015, "Total dose (in MBq) × fraction left."],
-      ["suv", "SUVmax", 0.015, `${grp(D.hot.bqml)} ÷ (dose at scan start in Bq ÷ weight in grams).`],
+      ["suv", "SUVmax", 0.015, `${grp(D.hot.bqml)} Bq/mL ÷ (dose at scan start [Bq] ÷ weight [g]). In Bq and grams: 1 MBq = 1000000 Bq, 1 kg = 1000 g.`],
     ];
     const out = rows.map(([k, name, tol, hint]) => {
       const v = g(k);
@@ -553,20 +602,20 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
   // ---------- steps ----------
   const STEPS = ["image", "header", "whatif"], NAMES = { image: "the image", header: "the DICOM header", whatif: "what if?" };
   const steppers = {};
-  function showFrom(li) {   // messages with data-show-from="<task id>" appear from that task on
+  function showFrom(li) {   // data-show-from="<task id>": appears from that task on; data-hide-from: disappears from it on
     const box = li.closest(".tasks"), items = [...box.querySelectorAll(":scope > ol > li")], pos = items.indexOf(li);
-    box.closest("[data-step]").querySelectorAll("[data-show-from]").forEach(el => {
-      const at = items.findIndex(x => x.querySelector("#" + el.dataset.showFrom));
-      el.hidden = pos < at;
-    });
+    const at = id => items.findIndex(x => x.querySelector("#" + id));
+    box.closest("[data-step]").querySelectorAll("[data-show-from]").forEach(el => { el.hidden = pos < at(el.dataset.showFrom); });
+    box.closest("[data-step]").querySelectorAll("[data-hide-from]").forEach(el => { el.hidden = pos >= at(el.dataset.hideFrom); });
   }
   STEPS.forEach((step, si) => {
     const box = document.querySelector(`[data-step="${step}"] .tasks`);
     steppers[step] = Stepper.setup(box, {
       key: "taskpos-petsuv-" + step, sticky: false, onShow: showFrom,
       prev: si > 0 ? () => { location.hash = STEPS[si - 1]; } : null,
-      next: si < STEPS.length - 1 ? () => { location.hash = STEPS[si + 1]; window.scrollTo({ top: 0 }); } : () => { location.href = "pet.html"; },
-      nextLabel: si < STEPS.length - 1 ? `Next: ${NAMES[STEPS[si + 1]]} →` : "Done: back to all blocks",
+      // Block A is the last block (order C, D, B, A): it ends on the answers page, for the debrief
+      next: si < STEPS.length - 1 ? () => { location.hash = STEPS[si + 1]; window.scrollTo({ top: 0 }); } : () => { location.href = "pet_answers.html"; },
+      nextLabel: si < STEPS.length - 1 ? `Next: ${NAMES[STEPS[si + 1]]} →` : "Done: review my answers →",
     });
   });
   function show(step) {

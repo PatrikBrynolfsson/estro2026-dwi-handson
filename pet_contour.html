@@ -64,7 +64,7 @@ nav a:hover { color: var(--ink); }
 .viewer.light .side { color: #5f6672; }
 .viewer .side-r { left: 8px; } .viewer .side-l { right: 8px; }
 .vslider { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
-.vslider input { writing-mode: vertical-lr; direction: rtl; flex: 1; min-height: 120px; width: 26px; margin: 0; accent-color: var(--teal); }
+.vslider input { writing-mode: vertical-lr; direction: ltr; /* slice 0 (head; front on the coronal) at the top: up = towards the head */ flex: 1; min-height: 120px; width: 26px; margin: 0; accent-color: var(--teal); }
 .vslider .mono { font-size: 13px; color: var(--ink); white-space: nowrap; }
 .cbar { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
 .cbar .bar { position: relative; flex: 1; min-height: 120px; display: flex; gap: 4px; }
@@ -257,7 +257,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
 <script src="pet_view.js?v=0bde9340"></script>
 <script src="stepper.js?v=b8ba56c1"></script>
 <script>window.WORKSHEET = "pet";</script>
-<script src="answers.js?v=90e1b5cd"></script>
+<script src="answers.js?v=d221bdab"></script>
 <script>
 (() => {
   "use strict";
@@ -511,8 +511,8 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
     steppers[step] = Stepper.setup(box, {
       key: "taskpos-petcontour-" + step, sticky: false, onShow: showFrom,
       prev: si > 0 ? () => { location.hash = STEPS[si - 1]; } : null,
-      next: si < STEPS.length - 1 ? () => { location.hash = STEPS[si + 1]; window.scrollTo({ top: 0 }); } : () => { location.href = "pet.html"; },
-      nextLabel: si < STEPS.length - 1 ? `Next: ${NAMES[STEPS[si + 1]]} →` : "Done: back to all blocks",
+      next: si < STEPS.length - 1 ? () => { location.hash = STEPS[si + 1]; window.scrollTo({ top: 0 }); } : () => { location.href = "pet_ac.html"; },   // order C, D, break, B, A
+      nextLabel: si < STEPS.length - 1 ? `Next: ${NAMES[STEPS[si + 1]]} →` : "Done: after the break, Block B →",
     });
   });
   function show(step) {

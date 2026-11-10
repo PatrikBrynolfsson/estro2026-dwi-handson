@@ -131,7 +131,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
 <div class="wrap">
   <header>
     <a class="back" href="mr.html">← All blocks</a>
-    <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · Block C</div>
+    <div class="eyebrow">ESTRO Advanced Imaging 2026 · Hands-on · Block C (2 of 3)</div>
     <h1>Contouring on DWI</h1>
     <p class="lede">Another man from the same study as Block B. The tumour is easier to see on the ADC map than on T2w. Can you
       contour the tumour, or a boost volume, on it? Scroll through the whole prostate with the slider (slices <span id="slice-mm"></span> mm apart);
@@ -390,8 +390,8 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
     steppers[step] = Stepper.setup(box, {
       key: "taskpos-contour-" + step, sticky: true,
       prev: si > 0 ? () => { location.hash = STEPS[si - 1]; } : null,
-      next: si < STEPS.length - 1 ? () => { location.hash = STEPS[si + 1]; window.scrollTo({ top: 0 }); } : () => { location.href = "mr.html"; },
-      nextLabel: si < STEPS.length - 1 ? `Next: ${STEP_NAMES[STEPS[si + 1]]} →` : "Done: back to all blocks",
+      next: si < STEPS.length - 1 ? () => { location.hash = STEPS[si + 1]; window.scrollTo({ top: 0 }); } : () => { location.href = "sandbox.html"; },
+      nextLabel: si < STEPS.length - 1 ? `Next: ${STEP_NAMES[STEPS[si + 1]]} →` : "Next block: A · b-values sandbox →",
     });
   });
   document.querySelectorAll("[data-go]").forEach(b => { b.closest(".row").hidden = true; });   // the stepper's Next replaces these
@@ -589,7 +589,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
   }).catch(() => { document.querySelector(".bench").innerHTML = `<div class="message">The images could not be decoded. Try another browser.</div>`; });
 })();
 </script>
-<script src="answers.js?v=90e1b5cd"></script>
+<script src="answers.js?v=d221bdab"></script>
 
 <script src="review/review.js"></script>
 </body>
