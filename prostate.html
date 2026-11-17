@@ -122,6 +122,7 @@ svg.plot { width: 100%; height: auto; display: block; }
 .note { font-size: 12.5px; color: var(--muted); }
 .message ul { margin: 6px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 3px; }
 .message { background: var(--surface); border-radius: 10px; padding: 12px 14px; font-size: 14.5px; }
+.reveal[hidden] { display: none; }
 .reveal { border: 2px solid var(--teal); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
@@ -211,7 +212,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
     </div>
   </section>
 
-  <section class="reveal" id="reveal-sec" aria-live="polite">
+  <section class="reveal" id="reveal-sec" aria-live="polite" hidden>
     <h2>Task 4: has the tumour responded?</h2>
     <div class="row" id="answers">
       <button type="button" id="ans-yes">Response</button>
@@ -254,7 +255,7 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
 </div>
 
 <script src="prostate_case.js?v=2364f2ec"></script>
-<script src="stepper.js?v=73fdfe1c"></script>
+<script src="stepper.js?v=25be0963"></script>
 <script>
 (() => {
   "use strict";
@@ -483,7 +484,10 @@ footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12.5px
   // ---------- tasks: one at a time (stepper.js) ----------
   Stepper.setup(document.querySelector(".tasks"), {
     key: "taskpos-prostate", sticky: true, prev: null,
-    onShow: li => { if (li.querySelector("#b-1")) setShowRoi(false); else if (!st.showRoi) setShowRoi(true); },   // find the tumour yourself first
+    onShow: li => {
+      if (li.querySelector("#b-1")) setShowRoi(false); else if (!st.showRoi) setShowRoi(true);   // find the tumour yourself first
+      $("reveal-sec").hidden = !li.querySelector("#b-4, #b-5");   // the "Task 4" answer section only from task 4 on
+    },
     next: () => { location.href = "contour.html"; }, nextLabel: "Next block: B · Contouring on DWI →",
   });
 })();

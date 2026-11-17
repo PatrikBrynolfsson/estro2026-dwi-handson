@@ -148,9 +148,9 @@
       next.textContent = intro && i === intros - 1 ? "Start the tasks →" : i < n - 1 ? "Next →" : (opt.nextLabel || "Done");
       next.disabled = i === n - 1 && !opt.next;
       store.set(opt.key, String(i));
+      if (opt.onShow) opt.onShow(items[i]);   // first, so what the page shows for this card is in place before the outline and scroll
       const els = (items[i].dataset.spot || "").split(",").filter(Boolean).map(id => document.getElementById(id)).filter(Boolean);
       spotlight(box, els, { dimming: intro, scroll: !quiet });   // quiet (page load, tab switch): no scrolling, but still dim
-      if (opt.onShow) opt.onShow(items[i]);
     }
     title.addEventListener("click", e => { if (e.target.closest("[data-intro]")) go(0); });
     // Previous from task 1 leaves the step once the start cards were seen (they open only on request)
